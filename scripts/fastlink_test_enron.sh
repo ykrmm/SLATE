@@ -1,0 +1,37 @@
+python dgt/run.py \
+ --multirun \
+ wandb_conf.name=FASTSupraLap_Test_Enron \
+ dataset=DGB-Enron \
+ model=FAST \
+ gpu=1 \
+ lr=0.005,0.001,0.0005,0.0001 \
+ task.engine.batch_size=64,128 \
+ task.split=lastk \
+ model.evolving=False \
+ model.clip_grad=True \
+ model.pred_next=False \
+ model.link_pred.bias_lin_pe=False \
+ model.link_pred.window=3,4,5 \
+ model.link_pred.use_cross_attn=True \
+ model.link_pred.flash=False \
+ model.link_pred.light_ca=False \
+ model.link_pred.nhead_ca=2 \
+ model.link_pred.dropout_ca=0.1 \
+ model.link_pred.bias_ca=True \
+ model.link_pred.add_bias_kv=True \
+ model.link_pred.add_zero_attn=True \
+ model.link_pred.add_lin_pe=True\
+ model.link_pred.dim_pe=30 \
+ model.link_pred.norm_lap=sym \
+ model.link_pred.add_eig_vals=True \
+ model.link_pred.remove_isolated=True \
+ model.link_pred.isolated_in_transformer=True\
+ model.link_pred.add_time_connection=True \
+ model.link_pred.p_self_time=1.0 \
+ model.link_pred.dim_feedforward=1024 \
+ model.link_pred.nhead=2,8 \
+ model.link_pred.aggr=last \
+ model.link_pred.norm_first=False \
+ model.link_pred.undirected=True \
+ optim.optimizer.weight_decay=5e-7 \
+ task.engine.n_runs=1 \

@@ -1,0 +1,21 @@
+name: UCI-Message
+datadir: '../data'
+num_nodes: 1899
+num_edges: 59835
+timestamp: 28
+features_dim: ${dataset.num_nodes}
+num_classes: 2
+
+dts: 
+  link_pred:
+    _target_: dgt.datasets.LinkPredData
+    datadir: ${dataset.datadir}
+    dataname: ${dataset.name}
+    dgb: True
+    evolving: ${model.evolving}
+    n_nodes: ${dataset.num_nodes}
+    one_hot: True
+    sampling: ${task.sampling}
+    train_ratio : ${task.train_ratio}
+    split: ${task.split}
+    pred_next : ${model.pred_next}

@@ -1,0 +1,22 @@
+name: USLegis
+datadir: '../data'
+num_nodes: 225
+num_edges: 60396
+timestamp: 12
+features_dim: ${dataset.num_nodes}
+num_classes: 2
+
+dts: 
+  link_pred:
+    _target_: dgt.datasets.LinkPredData
+    datadir: ${dataset.datadir}
+    dataname: ${dataset.name}
+    dgb: True
+    evolving: ${model.evolving}
+    score: ${model.score}
+    n_nodes: ${dataset.num_nodes}
+    one_hot: True
+    sampling: ${task.sampling}
+    train_ratio : ${task.train_ratio}
+    split: ${task.split}
+    pred_next : ${model.pred_next}

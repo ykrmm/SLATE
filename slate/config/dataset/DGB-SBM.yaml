@@ -1,0 +1,24 @@
+name: SBM
+datadir: '../data'
+num_nodes: 1000
+num_edges: 4870863
+timestamp: 50
+features_dim: ${dataset.num_nodes}
+num_classes: 2
+
+dts: 
+  link_pred:
+    _target_: dgt.datasets.LinkPredData
+    datadir: ${dataset.datadir}
+    dataname: ${dataset.name}
+    dgb: True
+    evolving: ${model.evolving}
+    score: ${model.score}
+    n_nodes: ${dataset.num_nodes}
+    one_hot: True
+    sampling: ${task.sampling}
+    train_ratio : ${task.train_ratio}
+    split: ${task.split}
+    k_test: 10
+    k_val: 0
+    pred_next : ${model.pred_next}

@@ -1,0 +1,41 @@
+name: GCN
+evolving: True
+one_hot: True
+score: 'none'
+pred_next: False
+clip_grad: False
+
+node_classif: 
+  _target_: dgt.models.StaticGNN
+  num_nodes: ${dataset.num_nodes}
+  features_dim: ${dataset.features_dim}
+  num_classes: ${dataset.num_classes}
+  model_name: ${model.name}
+  layers: 3 
+  hidden_dim: 128
+  one_hot: ${model.one_hot}
+  undirected: True
+
+link_pred: 
+  _target_: dgt.models.StaticGNN
+  num_nodes: ${dataset.num_nodes}
+  features_dim: ${dataset.features_dim}
+  num_classes: ${dataset.num_classes}
+  model_name: ${model.name}
+  layers: 3 
+  hidden_dim: 128
+  one_hot: ${model.one_hot}
+  undirected: True
+  task_name: 'link_pred'
+node_reg: 
+  _target_: dgt.models.StaticGNN
+  num_nodes: ${dataset.num_nodes}
+  features_dim: ${dataset.features_dim}
+  num_classes: ${dataset.num_classes}
+  model_name: ${model.name}
+  layers: 3 
+  hidden_dim: 128
+  one_hot: ${model.one_hot}
+  undirected: True
+  task_name: 'node_reg'
+  

@@ -1,0 +1,31 @@
+evolving: False # If false Model does not considere links that appeared in previous timestamp
+one_hot: True
+name: GCLSTM_VN
+score: 'none'
+pred_next: False
+clip_grad: False
+
+link_pred:
+  _target_: dgt.models.GCLSTM_VN
+  num_nodes: ${dataset.num_nodes}
+  num_features: ${dataset.features_dim}
+  in_channels: 128
+  time_length: ${dataset.timestamp}
+  K: 2
+  normalization: 'sym'
+  bias: true
+  one_hot: ${model.one_hot}
+  undirected: False
+  task_name: 'link_pred'
+node_reg:
+  _target_: dgt.models.GCLSTM_VN
+  num_nodes: ${dataset.num_nodes}
+  num_features: ${dataset.features_dim}
+  in_channels: 128
+  time_length: ${dataset.timestamp}
+  K: 2
+  normalization: 'sym'
+  bias: true
+  one_hot: ${model.one_hot}
+  undirected: False
+  task_name: 'node_reg'

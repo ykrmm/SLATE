@@ -1,0 +1,8 @@
+evolving: False # If false Model does not considere links that appeared in previous timestamp
+name: Random
+
+node_classif: 
+  _target_: dgt.models.RandomModel
+  num_features: ${dataset.num_nodes}
+  num_classes: ${dataset.num_classes}
+  

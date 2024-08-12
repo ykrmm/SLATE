@@ -1,0 +1,42 @@
+
+
+sampling: random
+split: temporal
+train_ratio: 0.7
+
+engine:
+  epoch: 50
+  eval_every: 1
+  shuffle_train_loader: True 
+  batch_size: 64
+  n_runs : 1 # eval final il faudra 5
+  early_stopping: 15
+  log_train: False
+  train_loader:
+    _target_: torch.utils.data.DataLoader
+    batch_size: ${task.engine.batch_size}
+    num_workers: 10
+    pin_memory: True
+    drop_last: False
+
+  val_loader:
+    _target_: torch.utils.data.DataLoader
+    batch_size: ${task.engine.batch_size}
+    shuffle: False
+    num_workers: 10
+    pin_memory: True
+    drop_last: False
+  
+  test_loader:
+    _target_: torch.utils.data.DataLoader
+    batch_size: ${task.engine.batch_size}
+    shuffle: False
+    num_workers: 10
+    pin_memory: True
+    drop_last: False
+loss: 
+  _target_: torch.nn.BCEWithLogitsLoss
+  reduction: mean
+
+
+

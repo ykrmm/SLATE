@@ -1,0 +1,24 @@
+evolving: False # If false Model does not considere links that appeared in previous timestamp
+score: 'none' # If true, Model considers the score of the links
+one_hot: True
+name: HTGN
+pred_next: False
+clip_grad: False
+link_pred: 
+  _target_: dgt.models.HTGN
+  num_nodes: ${dataset.num_nodes}
+  nhid: 16
+  dropout: 0.0
+  curvature: 1.0
+  nout: 16
+  fixed_curvature: 1
+  nfeat: 128
+  use_hta: 1
+  use_gru: True
+  model_type: 'HTGN'
+  aggregation: 'deg'
+  heads: 1
+  window: 5
+  device: 'cuda:0'
+  manifold: 'PoincareBall'
+  undirected: False

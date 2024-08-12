@@ -1,0 +1,18 @@
+evolving: False # If false Model does not considere links that appeared in previous timestamp
+one_hot: True
+score: 'none'
+name: VGRNN
+pred_next: False
+clip_grad: False
+
+link_pred:
+  _target_: dgt.models.VGRNN
+  num_nodes: ${dataset.num_nodes}
+  h_dim: 32
+  z_dim: 16
+  n_layers: 1
+  eps: 1e-10
+  conv: 'GCN'
+  bias: true
+  one_hot: ${model.one_hot}
+  undirected: True
