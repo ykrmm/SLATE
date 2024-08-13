@@ -5,10 +5,6 @@ import time
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import MultiStepLR
-import wandb
-import omegaconf
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 from torcheval.metrics import BinaryAUROC, BinaryAUPRC
@@ -158,19 +154,6 @@ class EngineLinkPred(EngineBase):
         self.logger.info("Undirected graphs: {}".format(self.config.model.link_pred.undirected))
         self.logger.info("One hot features: {}".format(self.config.model.one_hot))
         
-        # wandb 
-        config_wandb =  omegaconf.OmegaConf.to_container(self.config, resolve=True, throw_on_missing=True)
-        wandb.init(
-            entity=self.config.wandb_conf.entity,
-            project=self.config.wandb_conf.project_link_pred,
-            name=self.config.wandb_conf.name,
-            config=config_wandb,
-            reinit=True,  # reinit=True is necessary when calling multirun with hydra 
-        ) 
-        if self.config.multithreading:
-            self.logger.info("Using multithreading")
-            wandb.init(settings=wandb.Settings(start_method="thread"))
-
         # amp 
         try: 
             self.use_amp = self.model.flash
@@ -210,10 +193,7 @@ class EngineLinkPred(EngineBase):
             self.logger.info("Number of edges in test: {}".format(len(self.dts.edge_index_test[0])))
             self.logger.info("Constructing the dataloaders")
             
-            
-
-            # scheduler 
-            scheduler = MultiStepLR(self.optimizer, milestones=[50,100], gamma=0.001)
+            # model
             self.pred_next = self.config.model.pred_next
             
             # metrics
@@ -255,12 +235,6 @@ class EngineLinkPred(EngineBase):
                     mean_loss, scores = self.train(train_dts,t_train)
                     st = time.time()
                     self.logger.info(f"Time to train one epoch: {st-et:.4f} s")
-                    if i == 0:
-                        # only log the first run
-                        wandb.log({"Loss Train "+str(self.data_name): mean_loss},step=ep)
-                        if self.log_train:
-                            for name,score in scores.items():
-                                wandb.log({name+" Train "+str(self.data_name): score},step=ep)
                     if self.log_train:
                         current_train_ap = scores['AP']
                         self.logger.info(f"AP Train: {current_train_ap}")
@@ -273,9 +247,6 @@ class EngineLinkPred(EngineBase):
                     if self.use_val:
                         # val
                         scores = self.eval(val_dts,[t_train,t_val])
-                        if i == 0 : 
-                            for name,score in scores.items():
-                                wandb.log({name+" Val "+str(self.data_name): score},step=ep)
                         current_val_ap = scores['AP']
                         current_val_auc = scores['ROC-AUC']
                         self.logger.info(f"AUC Val: {current_val_auc}")
@@ -284,9 +255,6 @@ class EngineLinkPred(EngineBase):
                     
                     # test
                     scores = self.eval(test_dts, [t_val,t_test])
-                    if i == 0 : 
-                        for name,score in scores.items():
-                            wandb.log({name+" Test "+str(self.data_name): score},step=ep)
                     self.logger.info(f"AP Test: {scores['AP']}")
                     self.logger.info(f"AUC Test: {scores['ROC-AUC']}")
                     test_ap.append(scores['AP'])
@@ -315,7 +283,7 @@ class EngineLinkPred(EngineBase):
                 all_ap_test.append(max(test_ap))
                 all_roc_auc_test.append(max(test_roc))
 
-        
+        self.logger.info(f"Maximum memory allocated: {torch.cuda.max_memory_allocated()} bytes")
         final_ap_test = np.mean(all_ap_test)
         final_roc_auc_test = np.mean(all_roc_auc_test)
         final_ap_test_std = np.std(all_ap_test)
@@ -324,10 +292,5 @@ class EngineLinkPred(EngineBase):
         self.logger.info("Std AP on test: {}".format(final_ap_test_std)) # To remove
         self.logger.info("Mean ROC-AUC on test: {}".format(final_roc_auc_test))
         self.logger.info("Std AP on test: {}".format(final_roc_auc_test_std))
-        wandb.run.summary["Mean AP Test"] = final_ap_test
-        wandb.run.summary["Mean ROC-AUC Test"] = final_roc_auc_test
-        wandb.run.summary["Std AP Test"] = final_ap_test_std
-        wandb.run.summary["Std ROC-AUC Test"] = final_roc_auc_test_std
-                
         
     

@@ -137,6 +137,7 @@ class SLATE(nn.Module):
         
         if self.use_performer: 
             # PROTOTYPE with naive parameters for rebuttal
+            print('ENCODER: Transformer')
             self.spatio_temp_attn = Performer(
                     dim=self.dim_emb,
                     depth=self.num_layers_trsf,
@@ -146,6 +147,7 @@ class SLATE(nn.Module):
                     ff_mult=self.dim_feedforward // self.dim_emb   # Feedforward network multiplier
                 )
         else:
+            print('ENCODER: Transformer')
             encoder_layer = nn.TransformerEncoderLayer(d_model = self.dim_emb,
                                                     nhead=self.nhead,
                                                     dim_feedforward=self.dim_feedforward,
@@ -158,6 +160,7 @@ class SLATE(nn.Module):
                                                         norm = norm)
             
         if self.use_cross_attn: 
+            
             self.cross_attn = CrossAttention(dim_emb=self.dim_emb,
                                              num_heads=self.nhead_ca,
                                              dropout=self.dropout_ca,
@@ -165,6 +168,7 @@ class SLATE(nn.Module):
                                              add_bias_kv=self.add_bias_kv,
                                              add_zero_attn=self.add_zero_attn,
                                              light=self.light_ca)
+            # TODO : IMPLEMENT CROSS ATTENTION WITH PERFORMER
             
         # Aggregation  (Temporal aggregation in our Figure 2 .d )
         if self.use_cross_attn:

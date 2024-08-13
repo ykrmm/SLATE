@@ -1,6 +1,0 @@
-
-entity: ykrmm
-project: DGT 
-project_link_pred: DGT_link_3
-name: ${model.name}_${task.sampling}_${dataset.name}
-

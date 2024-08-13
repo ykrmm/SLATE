@@ -4,7 +4,7 @@ This is the official repository for the paper SLATE: Supra Laplacian Encoding fo
 
 This code is intended solely for the use of the reviewers and the Area Chair. We trust your discretion and kindly ask that you do not share it until the final decisions are released.
 
-This is a provisional code; due to time constraints, it is not perfectly commented.
+This is a provisional code; due to time constraints, it is not perfectly commented, it may contains some bugs.
 
 ![tw](https://github.com/ykrmm/SLATE/blob/main/slate_model.png)
 
@@ -36,17 +36,17 @@ pandas==1.3.5
 
 
 ### Code structure and main files to review
-The main files of interest according to us are:
+The main files of interest are:
 
 - `slate/lib/supra.py`: This file contains the code for transforming a discrete dynamic graph into a multilayer graph.
 
-- `slate/models/slate.py`: This file contains our SLATE model. Here you can see how the 4 steps of our model are performed (Supra-adjacency, construction of the spatio-temporal encoding, Fully-connected Transformer and Edgemodule cross-attention).
+- `slate/models/slate.py`: This file details our SLATE model. Here you can see how the 4 steps of our model are performed (Supra-adjacency, construction of the spatio-temporal encoding, Fully-connected Transformer and Edgemodule cross-attention) as illustrated in the figure above.
 
-- `slate/engine/engine_link_pred.py`: This is the main file where we load the models, datasets, train the model, and perform evaluation.
+- `slate/engine/engine_link_pred.py`: This is the main file where we load the models, datasets, train the model, and perform the evaluation.
 
 - `slate/data`: The discrete dynamic graph data used for the experiments.
 
-- `scripts`: The example execution scripts are located in this folder
+- `scripts`: The example execution scripts are located in this folder.
 
 ### About Hydra: 
 We use Hydra to execute scripts. Hydra overwrites the configuration files located in `slate/config/`. For example, the configuration file for the SLATE model is in `slate/config/model/SLATE.yaml`.
@@ -73,5 +73,5 @@ You can then launch the script:
 
 
 ```
-sh scripts/slate_trade.sh 
+sh scripts/ex_slate_trade.sh 
 ```

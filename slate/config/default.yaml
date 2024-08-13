@@ -16,7 +16,6 @@ defaults:
 
     - optim: adam
 
-    - wandb_conf: wandb_default
     
     - override hydra/job_logging: colorlog
 
