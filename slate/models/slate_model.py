@@ -5,6 +5,7 @@ from torch.backends.cuda import sdp_kernel, SDPBackend
 from torch.nn.modules.loss import BCEWithLogitsLoss
 from slate.models.slate_layers import LinkPredScore, CrossAttention, NodeAggregation, EdgeAggregation
 from slate.lib import graphs_to_supra, reindex_edge_index, AddSupraLaplacianPE 
+from performer_pytorch import Performer
 
 class SLATE(nn.Module):
     """
@@ -21,6 +22,7 @@ class SLATE(nn.Module):
         decision: str,
         use_cross_attn: bool,
         flash: bool,
+        use_performer: bool,
         light_ca: bool,
         nhead_ca: int,
         dropout_ca: float,
@@ -64,6 +66,7 @@ class SLATE(nn.Module):
         self.use_cross_attn = use_cross_attn
         self.light_ca = light_ca
         self.flash = flash
+        self.use_performer = use_performer
         self.nhead_ca = nhead_ca
         self.dropout_ca = dropout_ca
         self.bias_ca = bias_ca
@@ -90,6 +93,8 @@ class SLATE(nn.Module):
         
         self.bceloss = BCEWithLogitsLoss()
         self.build_model()
+        if self.use_performer:
+            self.flash = False # Performer does not support flash (not tested )
         assert self.aggr in ["mean","sum","max","last"], "Aggregation must be either last, mean, sum or max"
         assert self.decision in ["mlp","dot"], "Decision must be either mlp or dot"
 
@@ -129,17 +134,29 @@ class SLATE(nn.Module):
         # Initialize spatio-temporal attention
 
         norm = nn.LayerNorm(self.dim_emb)
-        encoder_layer = nn.TransformerEncoderLayer(d_model = self.dim_emb,
-                                                   nhead=self.nhead,
-                                                   dim_feedforward=self.dim_feedforward,
-                                                   batch_first=True,
-                                                   norm_first=self.norm_first,
-                                                   )     
-            
-        self.spatio_temp_attn = nn.TransformerEncoder(encoder_layer,
-                                                    num_layers = self.num_layers_trsf,
-                                                    norm = norm)
         
+        if self.use_performer: 
+            # PROTOTYPE with naive parameters for rebuttal
+            self.spatio_temp_attn = Performer(
+                    dim=self.dim_emb,
+                    depth=self.num_layers_trsf,
+                    heads=self.nhead,
+                    causal=False,           # Set to True for autoregressive tasks
+                    dim_head=self.dim_emb // self.nhead, # Dimension of each attention head
+                    ff_mult=self.dim_feedforward // self.dim_emb   # Feedforward network multiplier
+                )
+        else:
+            encoder_layer = nn.TransformerEncoderLayer(d_model = self.dim_emb,
+                                                    nhead=self.nhead,
+                                                    dim_feedforward=self.dim_feedforward,
+                                                    batch_first=True,
+                                                    norm_first=self.norm_first,
+                                                    )     
+                
+            self.spatio_temp_attn = nn.TransformerEncoder(encoder_layer,
+                                                        num_layers = self.num_layers_trsf,
+                                                        norm = norm)
+            
         if self.use_cross_attn: 
             self.cross_attn = CrossAttention(dim_emb=self.dim_emb,
                                              num_heads=self.nhead_ca,

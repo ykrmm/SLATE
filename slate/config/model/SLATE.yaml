@@ -15,6 +15,7 @@ link_pred:
   decision: 'dot'
   use_cross_attn: False
   flash: False
+  use_performer: False
   light_ca: False
   nhead_ca : 1
   dropout_ca : 0.1

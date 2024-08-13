@@ -7,9 +7,9 @@ python slate/run.py \
  lr=0.0001 \
  task.engine.batch_size=1024 \
  model.evolving=False \
- model.clip_grad=True \
+ model.clip_grad=True,False \
  model.pred_next=False \
- model.link_pred.window=2 \
+ model.link_pred.window=2,3 \
  model.link_pred.decision=dot \
  model.link_pred.aggr=last \
  model.link_pred.light_ca=False \
@@ -25,7 +25,7 @@ python slate/run.py \
  model.link_pred.num_layers_trsf=1 \
  model.link_pred.one_hot=True \
  model.link_pred.norm_first=False \
- model.link_pred.dim_pe=6 \
+ model.link_pred.dim_pe=6,8,10 \
  model.link_pred.add_lin_pe=True \
  model.link_pred.bias_lin_pe=False \
  model.link_pred.dim_feedforward=512 \
@@ -35,7 +35,8 @@ python slate/run.py \
  model.link_pred.remove_isolated=True \
  model.link_pred.isolated_in_transformer=True \
  model.link_pred.add_time_connection=True \
- model.link_pred.p_self_time=0.5 \
+ model.link_pred.p_self_time=0.2,0.5 \
  model.link_pred.undirected=True \
  optim.optimizer.weight_decay=0 \
  task.engine.n_runs=1 \
+ task.engine.epoch=10 \
