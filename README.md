@@ -37,8 +37,7 @@ pandas==1.3.5
 
 
 ## Code explaination
-### About Hydra: 
-We use Hydra to execute scripts. Hydra overwrites the configuration files located in `slate/config/`. For example, the configuration file for the SLATE model is in `slate/config/model/SLATE.yaml`.
+
 
 ### Code structure and main files to review
 The main files of interest according to us are:
@@ -54,6 +53,9 @@ The main files of interest according to us are:
 - `slate/data`: The discrete dynamic graph data used for the experiments.
 
 - `scripts`: The example execution scripts are located in this folder
+
+### About Hydra: 
+We use Hydra to execute scripts. Hydra overwrites the configuration files located in `slate/config/`. For example, the configuration file for the SLATE model is in `slate/config/model/SLATE.yaml`.
 
 ## Notebooks
 
