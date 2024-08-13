@@ -1,5 +1,5 @@
 name: UNvote
-datadir: '/users/k/karmimy/These/SLATE/slate/data'
+datadir: '/Absolute/path/to/data'
 num_nodes: 201
 num_edges: 1035742
 timestamp: 72
