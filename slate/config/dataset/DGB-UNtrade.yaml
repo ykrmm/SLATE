@@ -1,5 +1,5 @@
 name: UNtrade
-datadir: '../data'
+datadir: '/users/k/karmimy/These/SLATE/slate/data'
 num_nodes: 255
 num_edges: 507497
 timestamp: 32
@@ -8,7 +8,7 @@ num_classes: 2
 
 dts: 
   link_pred:
-    _target_: dgt.datasets.LinkPredData
+    _target_: slate.datasets.LinkPredData
     datadir: ${dataset.datadir}
     dataname: ${dataset.name}
     dgb: True

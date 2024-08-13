@@ -5,7 +5,7 @@ name: SLATE
 pred_next: False
 clip_grad: False
 link_pred: 
-  _target_: dgt.models.SLATE
+  _target_: slate.models.SLATE
   num_nodes: ${dataset.num_nodes}
   num_features: ${sub:${dataset.timestamp},1}
   num_classes: ${dataset.num_classes}
@@ -26,6 +26,7 @@ link_pred:
   dim_pe: 12
   norm_lap: 'sym'
   add_eig_vals: False
+  add_vn: False
   remove_isolated: True
   isolated_in_transformer: False
   add_time_connection: False

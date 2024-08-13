@@ -10,71 +10,70 @@ def graphs_to_supra(graphs,
                     add_time_connection=False,
                     remove_isolated=True,
                     add_vn=False,
-                    p: float = 0.5):
+                    p: float = 1.0):
     """
     Args:
         graphs (List[Data]): A list of graphs
         num_nodes (int): The number of nodes in each graph
         add_time_connection (bool, optional): Whether to add self time connections between nodes
         add_vn : add virtual node
+        p: weight of the temporal connections (not explored yet but interesting to do (see NaturePaper))
     """
-    # Construct supra adjacency
+
     num_graphs = len(graphs)
     edge_index = []
     edge_weight = []
-    for i, graph in enumerate(graphs):
-        edge_index.append(graph.edge_index + i * num_nodes)
-        edge_weight.append(graph.edge_weight)
-        # add a virtual node connected to all nodes in the snapshot 
-        if add_vn: 
-            vn_dst = torch.unique(graph.edge_index + i * num_nodes)
-            vn_src = torch.ones_like(vn_dst) * (num_graphs * num_nodes + i)
-            vn_co = torch.vstack((vn_src,vn_dst))
-            vn_weight = torch.ones_like(vn_dst)
-            edge_index.append(vn_co)
-            edge_index.append(vn_weight)
-            
-            
-    edge_index = torch.cat(edge_index, dim=1).to(graph.edge_index.device)
-    edge_weight = torch.ones_like(edge_index[0], dtype=edge_weight[0].dtype, device=graph.edge_weight[0].device)
+    # Supra graph creation
 
-    # Compute mask for isolated nodes
+    for i in range(num_graphs): 
+        ei = graphs[i].edge_index + i * num_nodes # IMPORTANT: We considere nodes in different snapshots as different nodes
+        ew = graphs[i].edge_weight
+        
+        if add_vn:
+            id_vn = num_nodes*num_graphs + i # Assign an id to the virtual node
+            nodes_snapshot = torch.unique(ei.view(-1)) # Get the connected nodes in the snapshot
+            # Add connections between the virtual node and the nodes (deg > 0) in the snapshot
+            # We do not connect the virtual node to isolated nodes
+            vn_connections = torch.cat((torch.tensor([id_vn]*len(nodes_snapshot)).\
+                view(1,-1),nodes_snapshot.view(1,-1)),dim=0).to(graphs[0].edge_index.device)
+            ei = torch.cat((ei,vn_connections),dim=1)
+            ew = torch.cat((ew,torch.ones(len(nodes_snapshot))))
+            
+        if add_time_connection: 
+            # Add temporal connections between identical nodes in different snapshots
+            if i < num_graphs - 1:
+                ei_i = graphs[i].edge_index 
+                ei_next = graphs[i+1].edge_index 
+                nodes_snapshot = torch.unique(ei_i.view(-1))
+                nodes_snapshot_next = torch.unique(ei_next.view(-1))
+                # Intersection 
+                common_nodes = torch.LongTensor(np.intersect1d(nodes_snapshot,nodes_snapshot_next))
+                # Add temporal connections
+                src = common_nodes + i*num_nodes
+                dst = common_nodes + (i+1)*num_nodes
+                time_co = torch.vstack((src,dst)).to(graphs[0].edge_index.device)
+                ei = torch.cat((ei,time_co),dim=1)
+                ew = torch.cat((ew,p*torch.ones(len(common_nodes))))
+                
+                
+        edge_index.append(ei)
+        edge_weight.append(ew)
+    edge_index = torch.cat(edge_index,dim=1).to(graphs[0].edge_index.device)
+    edge_weight = torch.cat(edge_weight).to(graphs[0].edge_index.device)
+
+    # Now we have to create a mask to remove the isolated nodes
     total_nodes = num_nodes * num_graphs + num_graphs if add_vn else num_nodes * num_graphs
     if remove_isolated:
         mask = torch.zeros(total_nodes, dtype=torch.bool, device=edge_index.device)
         mask[torch.unique(edge_index)] = 1
     else:
         mask = torch.ones(total_nodes, dtype=torch.bool, device=edge_index.device)
-    
-    # Add time connections
-    if num_graphs > 1:
-        if add_time_connection and remove_isolated:
-            time_connection = []
-            for i in range(num_graphs - 1):
-                mask1 = mask[i * num_nodes:(i + 1) * num_nodes]
-                n1 = torch.arange(start=i * num_nodes, end=(i + 1) * num_nodes)
-                n1 = n1[mask1]
-                n2 = n1 + num_nodes
-                time_connection.append(torch.stack((n1, n2)))
-            time_connection = torch.cat(time_connection, dim=1)
-            weight_connection = torch.ones(time_connection.shape[1], dtype=edge_weight.dtype, device=edge_weight.device) * p
-            edge_index = torch.cat([edge_index, time_connection], dim=1)
-            mask[torch.unique(edge_index)] = 1
-            edge_weight = torch.cat([edge_weight, weight_connection], dim=0) 
-            
-        elif add_time_connection and not remove_isolated:
-            time_connection = []
-            for i in range(num_graphs - 1):
-                n1 = torch.arange(start=i * num_nodes, end=(i + 1) * num_nodes)
-                n2 = n1 + num_nodes
-                time_connection.append(torch.stack((n1, n2)))
-            time_connection = torch.cat(time_connection, dim=1)
-            weight_connection = torch.ones(time_connection.shape[1], dtype=edge_weight.dtype, device=edge_weight.device) * p
-            edge_index = torch.cat([edge_index, time_connection], dim=1)
-            edge_weight = torch.cat([edge_weight, weight_connection], dim=0)
-
-    # undirected graphs necessary for the laplacian
-    edge_index, edge_weight = to_undirected(edge_index, edge_weight)
+        
+    # Make the graph undirected
+    edge_index, edge_weight = to_undirected(edge_index,edge_weight)
+    # in edge_weight i want to have a max value of 1. 
+    edge_weight[edge_weight > 1] = 1 # Keep 1 everywhere except for the temporal connections
+    # We return the edge_index, edge_weight, and the mask list of isolated nodes
     return edge_index, edge_weight, mask
 
 def reindex_edge_index(edge_index):

@@ -125,7 +125,6 @@ class SLATE(nn.Module):
         # Decision function
         if self.decision == "mlp" or self.use_cross_attn:
             self.pred = LinkPredScore(dim_emb = self.dim_emb,
-                                      score = False,
                                       dropout = self.dropout_dec,
                                       edge = self.use_cross_attn)
         
@@ -229,6 +228,7 @@ class SLATE(nn.Module):
         """
         w = len(graphs)
         # compute the spatio temporal positional encoding
+        import ipdb; ipdb.set_trace()
         tokens, mask = self.compute_st_pe(graphs) # tokens: [N',F]  mask: [W,N]
 
         # Perform a spatio-temporal full attention
