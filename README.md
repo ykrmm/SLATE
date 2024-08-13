@@ -53,7 +53,7 @@ We use Hydra to execute scripts. Hydra overwrites the configuration files locate
 
 ## Notebooks
 
-### `notebooks/example_SLATE_toygraph.ipynb`
+### `notebooks/SLATE_Demo_toygraph.ipynb`
 We have provided a demonstration of the SLATE model as well as the main operations:
 
 - Transform a dynamic graph into a spatio-temporally connected multilayer graph.
