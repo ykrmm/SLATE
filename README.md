@@ -22,11 +22,7 @@ If you encounter a bug, please install at least the following packages in the fo
 
 ```
 torch==2.2.2+cu118
-torch_cluster==1.6.3+pt22cu118
 torch_geometric==2.4.0
-torch_scatter==2.1.2+pt22cu118
-torch_sparse==0.6.18+pt22cu118
-torch_spline_conv==1.2.2+pt22cu118
 torcheval==0.0.6
 -----------------------------------
 networkx==3.2.1
@@ -43,8 +39,6 @@ pandas==1.3.5
 The main files of interest according to us are:
 
 - `slate/lib/supra.py`: This file contains the code for transforming a discrete dynamic graph into a multilayer graph.
-
-- `slate/lib/encoding.py`: This file contains the code for performing the spectral decomposition of the supra-adjacency matrix built in `lib/supra.py`.
 
 - `slate/models/slate.py`: This file contains our SLATE model. Here you can see how the 4 steps of our model are performed (Supra-adjacency, construction of the spatio-temporal encoding, Fully-connected Transformer and Edgemodule cross-attention).
 

@@ -248,7 +248,8 @@ class SLATE(nn.Module):
             final_emb = self.proj(final_emb) # [N, W, F]
             raise NotImplementedError # TODO : TEST WITHOUT
         else:
-            z_tokens = z_tokens[:-w] # We dont need virtual nodes in the final embedding for predictions 
+            if self.add_vn:
+                z_tokens = z_tokens[:-w] # We dont need virtual nodes in the final embedding for predictions 
             final_emb = z_tokens.reshape(self.num_nodes, w, self.dim_emb) # [N, W, F]
         return final_emb
     

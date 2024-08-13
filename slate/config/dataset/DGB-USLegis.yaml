@@ -1,5 +1,5 @@
 name: USLegis
-datadir: '../data'
+datadir: '/users/k/karmimy/These/SLATE/slate/data'
 num_nodes: 225
 num_edges: 60396
 timestamp: 12

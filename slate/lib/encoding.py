@@ -80,6 +80,7 @@ class AddSupraLaplacianPE:
         self.kwargs = kwargs
         self.normalization = normalization
         self.add_eig_vals = add_eig_vals
+        self.ncv = None
         assert self.normalization in [None,'sym', 'rw'], 'Invalid normalization'
     
 
@@ -90,8 +91,10 @@ class AddSupraLaplacianPE:
             torch.FloatTensor : edge_weight representing the supra-adjacency matrix
             int : num_nodes representing the number of nodes in the graph
         """
-        ncv = num_nodes if num_nodes < 500 else min(num_nodes, max(2*self.k + 1, 20))
-        
+        if self.ncv is None:
+            self.ncv = num_nodes if num_nodes < 500 else min(num_nodes, max(2*self.k + 1, 20))
+            self.ncv = min(200, self.ncv)
+            
         edge_index, edge_weight = get_laplacian(
             edge_index,
             edge_weight,
@@ -103,15 +106,27 @@ class AddSupraLaplacianPE:
 
         
         eig_fn = eigs if not self.is_undirected else eigsh
+        max_attempts = 10  # Nombre maximum de tentatives
+        attempts = 0  # Compteur de tentatives
 
-        eig_vals, eig_vecs = eig_fn(  # type: ignore
-            L,
-            k=self.k+1,
-            which='SR' if not self.is_undirected else 'SA',
-            return_eigenvectors=True,
-            ncv= ncv,
-            **self.kwargs,
-        )
+        while attempts < max_attempts:
+            try:
+                eig_vals, eig_vecs = eig_fn(  # type: ignore
+                    L,
+                    k=self.k+1,
+                    which='SR' if not self.is_undirected else 'SA',
+                    return_eigenvectors=True,
+                    ncv=self.ncv,
+                    **self.kwargs,
+                )
+                break  
+            except Exception as e: 
+                attempts += 1 
+                self.ncv += 100  
+                if attempts == max_attempts:
+                    print("Decomposition failed after 10 attempts.")
+                    raise  e
+            
         eig_vecs = np.real(eig_vecs[:, eig_vals.argsort()])
         pe = torch.from_numpy(eig_vecs[:, 1:self.k + 1])
         sign = -1 + 2 * torch.randint(0, 2, (self.k, ))
