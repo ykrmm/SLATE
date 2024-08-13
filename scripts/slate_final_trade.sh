@@ -8,8 +8,8 @@ python slate/run.py \
  model.evolving=False \
  model.clip_grad=True \
  model.pred_next=False \
- model.link_pred.window=3 \
- model.link_pred.decision=mlp \
+ model.link_pred.window=2 \
+ model.link_pred.decision=dot \
  model.link_pred.aggr=last \
  model.link_pred.light_ca=False \
  model.link_pred.use_cross_attn=True \
@@ -24,7 +24,7 @@ python slate/run.py \
  model.link_pred.num_layers_trsf=1 \
  model.link_pred.one_hot=True \
  model.link_pred.norm_first=False \
- model.link_pred.dim_pe=12 \
+ model.link_pred.dim_pe=6 \
  model.link_pred.add_lin_pe=True \
  model.link_pred.bias_lin_pe=False \
  model.link_pred.dim_feedforward=512 \
@@ -36,4 +36,4 @@ python slate/run.py \
  model.link_pred.add_time_connection=True \
  model.link_pred.undirected=True \
  optim.optimizer.weight_decay=0 \
- task.engine.n_runs=5 \
+ task.engine.n_runs=1 \

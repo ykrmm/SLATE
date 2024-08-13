@@ -92,16 +92,15 @@ class SLATE(nn.Module):
         self.build_model()
         assert self.aggr in ["mean","sum","max","last"], "Aggregation must be either last, mean, sum or max"
         assert self.decision in ["mlp","dot"], "Decision must be either mlp or dot"
-        if self.add_vn: 
-            self.num_nodes += 1 
+
             
     def set_device(self,device):
         self.device = device
 
     def build_model(self):
-        
+        self.num_nodes_embedding = self.num_nodes + 1 if self.add_vn else self.num_nodes
         # Initialize node embedding
-        self.node_embedding = nn.Embedding(num_embeddings=self.num_nodes, embedding_dim=self.dim_emb)
+        self.node_embedding = nn.Embedding(num_embeddings=self.num_nodes_embedding, embedding_dim=self.dim_emb)
 
         # Initialize spatio temporal PE
         self.use_edge_attr = False
@@ -110,16 +109,15 @@ class SLATE(nn.Module):
                                                is_undirected=self.undirected,
                                                add_eig_vals=self.add_eig_vals)
         
-        self.in_dim_pe = 2* self.dim_pe if self.add_eig_vals else self.dim_pe
-        
-            
+        self.in_dim_pe = 2 * self.dim_pe if self.add_eig_vals else self.dim_pe
+               
         # Initialize linear PE
         self.lin_pe = nn.Linear(self.in_dim_pe, self.in_dim_pe, bias=self.bias_lin_pe)
         
         # Initialize linear input 
         self.lin_input = nn.Linear(self.dim_emb + self.in_dim_pe, self.dim_emb, bias=True)
         
-        # Initialize projection layer 
+        # Initialize projection layer (deprecated)
         self.proj = nn.Linear(self.dim_emb, self.dim_emb, bias=True)
         
         # Decision function
@@ -151,7 +149,7 @@ class SLATE(nn.Module):
                                              add_zero_attn=self.add_zero_attn,
                                              light=self.light_ca)
             
-        # Aggregation 
+        # Aggregation  (Temporal aggregation in our Figure 2 .d )
         if self.use_cross_attn:
             self.aggregation = EdgeAggregation(self.aggr)
         else:
@@ -174,45 +172,37 @@ class SLATE(nn.Module):
                                                   self.remove_isolated,
                                                   add_vn=self.add_vn,
                                                   p=self.p_self_time)
-        import ipdb; ipdb.set_trace()
+        
         # Second : if we remove isolated nodes, reindex the edge to compute the laplacian 
         if self.remove_isolated: 
             # makes the graph connected by snapshot
             edge_index = reindex_edge_index(edge_index) # reindex node from 0 to len(torch.unique(edge_index))
+        
         edge_index = edge_index.to(self.device)
         edge_weight = edge_weight.to(self.device)
         mask = mask.to(self.device)
-        num_nodes = len(torch.unique(edge_index)) if self.remove_isolated else self.num_nodes*w
+        
+        # The number of nodes in the supra graph
+        num_nodes_supra_adj = len(torch.unique(edge_index)) if self.remove_isolated else self.num_nodes*w
         
         # Third : compute the supralaplacian PE
-        pe = self.supralaplacianPE(edge_index, edge_weight, num_nodes)
-        
+        pe = self.supralaplacianPE(edge_index, edge_weight, num_nodes_supra_adj)
         if self.add_lin_pe:
             pe = self.lin_pe(pe)
 
         # Fourth : Construct the token for the transformer
         if not self.isolated_in_transformer:
-            mask = mask.view(w, self.num_nodes)
-            tokens = []
-            for i in range(w):
-                xi = self.node_embedding(torch.arange(self.num_nodes).to(self.device)[mask[i]])
-                tokens.append(xi)
-            tokens = torch.vstack(tokens)
-            tokens = torch.cat([tokens,pe],dim=1) # [N',dim_emb + dim_pe]
+            raise NotImplementedError #
+            # TODO : TEST WITHOUT ISOLATED NODES IN TRANSFORMER
         else:
-            all_pe = torch.zeros(self.num_nodes*w, self.in_dim_pe).to(self.device) # PE = zeros for isolated nodes
-            try:
-                all_pe[mask] = pe
-            except:
-                import ipdb; ipdb.set_trace()
-            tokens = []
-            for i in range(w):
-                 xi = self.node_embedding(torch.arange(self.num_nodes).to(self.device))
-                 tokens.append(xi)
-            tokens = torch.vstack(tokens)
-            tokens = torch.cat([tokens,all_pe],dim=1) # [N*W,dim_emb + dim_pe]
-
-
+            all_pe = torch.zeros((self.num_nodes_embedding*w,self.in_dim_pe)).to(self.device)
+            all_pe[mask == 1] = pe
+            node_emb = self.node_embedding(torch.arange(self.num_nodes_embedding).to(self.device))
+            tokens = node_emb[:-1,:].repeat(w,1)
+            vn_emb = node_emb[-1].repeat(w,1)
+            tokens = torch.cat((tokens,vn_emb),dim=0) # Add the virtual nodes at the end of the tokens matrix (easyer to process later)
+            # Add the positional encoding to the tokens
+            tokens = torch.cat((tokens,all_pe),dim=1)
         # Fifth : Project linearly the tokens containing node emb and supraPE
         tokens = self.lin_input(tokens) # [N',dim_emb] or [N*W,dim_emb] if integrate isolated node for transformer
         
@@ -230,24 +220,19 @@ class SLATE(nn.Module):
         w = len(graphs)
         # compute the spatio temporal positional encoding
         tokens, mask = self.compute_st_pe(graphs) # tokens: [N',F]  mask: [W,N]
-
-        # Perform a spatio-temporal full attention
-            
+        
+        # Perform a spatio-temporal full attention # We flat all nodes at w snapshots  
+        # The idea of SLATE is to consider same node at different snapshot as independant token
         z_tokens = self.spatio_temp_attn(tokens.unsqueeze(0)).squeeze(0) # [N',F] # careful, with isolated nodes N' != N*len(graphs)
-
-
+        
         if not self.isolated_in_transformer: 
-            final_emb = torch.rand(self.num_nodes, w, self.dim_emb).to(self.device)
-            idx = 0
-            for i in range(w):
-                mask_i = mask[i]
-                final_emb[mask_i,i] = z_tokens[idx: idx+mask_i.sum()]
-                final_emb[~mask_i,i] = self.node_embedding(torch.arange(self.num_nodes).to(self.device)[~mask_i])
-                idx += mask_i.sum()
-            final_emb = self.proj(final_emb) # project isolated nodes and z_tokens in the same emb space
-            final_emb = final_emb.reshape(self.num_nodes, w, self.dim_emb) # [N, T, dim_emb]
+            # Remove vn of the token matrix
+            # We need to proj the isolated nodes in the same emb space as the z_tokens
+            final_emb = self.proj(final_emb) # [N, W, F]
+            raise NotImplementedError # TODO : TEST WITHOUT
         else:
-            final_emb = z_tokens.reshape(self.num_nodes, w, self.dim_emb)
+            z_tokens = z_tokens[:-w] # We dont need virtual nodes in the final embedding for predictions 
+            final_emb = z_tokens.reshape(self.num_nodes, w, self.dim_emb) # [N, W, F]
         return final_emb
     
 
@@ -258,6 +243,7 @@ class SLATE(nn.Module):
             graphs: List of torch_geometric.data.Data
         """
         with sdp_kernel(enable_flash=self.flash, enable_math=not(self.flash), enable_mem_efficient=False):
+            # s_pos, s_neg is deprecated: TODO REMOVE FROM DATALOADER
             node_1, node_2, node_2_negative, _, s_pos, s_neg, time  = feed_dict.values()
             # FORWARD
             tw = max(0,len(graphs)-self.window)        

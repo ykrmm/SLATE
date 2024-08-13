@@ -14,7 +14,7 @@ def graphs_to_supra(graphs,
     """
     Args:
         graphs (List[Data]): A list of graphs
-        num_nodes (int): The number of nodes in each graph
+        num_nodes (int): The number of nodes in each graph (must be the number of nodes without virtual nodes)
         add_time_connection (bool, optional): Whether to add self time connections between nodes
         add_vn : add virtual node
         p: weight of the temporal connections (not explored yet but interesting to do (see NaturePaper))
@@ -44,8 +44,8 @@ def graphs_to_supra(graphs,
             if i < num_graphs - 1:
                 ei_i = graphs[i].edge_index 
                 ei_next = graphs[i+1].edge_index 
-                nodes_snapshot = torch.unique(ei_i.view(-1))
-                nodes_snapshot_next = torch.unique(ei_next.view(-1))
+                nodes_snapshot = torch.unique(ei_i)
+                nodes_snapshot_next = torch.unique(ei_next)
                 # Intersection 
                 common_nodes = torch.LongTensor(np.intersect1d(nodes_snapshot,nodes_snapshot_next))
                 # Add temporal connections
