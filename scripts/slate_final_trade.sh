@@ -1,5 +1,6 @@
 python slate/run.py \
- wandb_conf.name=SLATE_Trade \
+ --multirun \
+ wandb_conf.name=SLATE_Search_Trade \
  dataset=DGB-UNtrade \
  model=SLATE \
  gpu=1 \
@@ -34,6 +35,7 @@ python slate/run.py \
  model.link_pred.remove_isolated=True \
  model.link_pred.isolated_in_transformer=True \
  model.link_pred.add_time_connection=True \
+ model.link_pred.p_self_time=0.5 \
  model.link_pred.undirected=True \
  optim.optimizer.weight_decay=0 \
  task.engine.n_runs=1 \

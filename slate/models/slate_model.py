@@ -8,7 +8,7 @@ from slate.lib import graphs_to_supra, reindex_edge_index, AddSupraLaplacianPE
 
 class SLATE(nn.Module):
     """
-    DGT model with a full spatio temporal attention and a full spatio temporal encoding. 
+    SLATE model with a full spatio temporal attention and a full spatio temporal encoding. 
     """
     def __init__(
         self,
