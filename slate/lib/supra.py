@@ -31,7 +31,7 @@ def graphs_to_supra(graphs,
         
         if add_vn:
             id_vn = num_nodes*num_graphs + i # Assign an id to the virtual node
-            nodes_snapshot = torch.unique(ei.view(-1)) # Get the connected nodes in the snapshot
+            nodes_snapshot = torch.unique(ei) # Get the connected nodes in the snapshot
             # Add connections between the virtual node and the nodes (deg > 0) in the snapshot
             # We do not connect the virtual node to isolated nodes
             vn_connections = torch.cat((torch.tensor([id_vn]*len(nodes_snapshot)).\

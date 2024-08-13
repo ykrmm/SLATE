@@ -174,6 +174,7 @@ class SLATE(nn.Module):
                                                   self.remove_isolated,
                                                   add_vn=self.add_vn,
                                                   p=self.p_self_time)
+        import ipdb; ipdb.set_trace()
         # Second : if we remove isolated nodes, reindex the edge to compute the laplacian 
         if self.remove_isolated: 
             # makes the graph connected by snapshot
@@ -228,7 +229,6 @@ class SLATE(nn.Module):
         """
         w = len(graphs)
         # compute the spatio temporal positional encoding
-        import ipdb; ipdb.set_trace()
         tokens, mask = self.compute_st_pe(graphs) # tokens: [N',F]  mask: [W,N]
 
         # Perform a spatio-temporal full attention
