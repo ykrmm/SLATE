@@ -44,7 +44,7 @@ The main files of interest are:
 
 - `slate/engine/engine_link_pred.py`: This is the main file where we load the models, datasets, train the model, and perform the evaluation.
 
-- `slate/data`: The discrete dynamic graph data used for the experiments.
+- `slate/data`: Some of DTDG graph data used for the experiments.
 
 - `scripts`: The example execution scripts are located in this folder.
 
@@ -65,7 +65,7 @@ We have provided a demonstration of the SLATE model as well as the main operatio
 The visualizations from the rebuttal as well as the code used to generate them are in this notebook. You can find all the generated figures in `figures/`.
 
 ## Run experiments 
-### Exemple : run SLATE sur le dataset UNtrade
+### Example : run SLATE on dataset UNtrade
 
 Before running an experiment, it is necessary to go to the configuration file: `slate/config/dataset/UNtrade`.yaml and replace `datadir:YourAbsolute/Path/data` with your absolute path to the `data/` folder.
 
