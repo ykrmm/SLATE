@@ -6,7 +6,7 @@ This code is intended solely for the use of the reviewers and the Area Chair. We
 
 This is a provisional code; due to time constraints, it is not perfectly commented, it may contains some bugs.
 
-![tw](./slate_model.png)
+![](./slate_model.png)
 
 ## Installation
 ```
