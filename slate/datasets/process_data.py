@@ -62,6 +62,7 @@ def read_features(path: str,T: int) -> torch.Tensor:
 
 def split_train_test(datadir,dataname,train_ratio: float = 0.8):
     """
+    Deprecated:
     Split the dataset into train and test. Create numpy arrays for train and test containing nodes and labels.
     Process the data to make sure that labels in test are also in train. 
     """
@@ -177,16 +178,3 @@ def split_train_test(datadir,dataname,train_ratio: float = 0.8):
 
     print('train and test successfully saved in ',join(datadir,dataname,'train_classif.npy'),' and test_classif.npy')
 
-
-
-if __name__ == "__main__":
-    
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--datadir', type=str, default='/share/DEEPLEARNING/datasets/graph_datasets/DPPIN/', help='Path to the datadir of DPPIN')
-    parser.add_argument('--dataname', type=str, default='DPPIN-Ito', help='Name of the dataset')
-    parser.add_argument('--train_ratio', type=float, default=0.8, help='Ratio of train nodes for each label')
-    args = parser.parse_args()
-
-    
-    split_train_test(args.datadir,args.dataname,args.train_ratio)
