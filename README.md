@@ -65,7 +65,7 @@ We have provided a demonstration of the SLATE model as well as the main operatio
 The visualizations from the rebuttal as well as the code used to generate them are in this notebook. You can find all the generated figures in `figures/`.
 
 ## Run experiments 
-### Exemple : run SLATE sur le dataset UNtrade
+### Example : run SLATE on dataset UNtrade
 
 Before running an experiment, it is necessary to go to the configuration file: `slate/config/dataset/UNtrade`.yaml and replace `datadir:YourAbsolute/Path/data` with your absolute path to the `data/` folder.
 
