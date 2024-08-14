@@ -41,7 +41,6 @@ python slate/run.py \
 
 
 python slate/run.py \
- wandb_conf.name=SLATE_Search_Vote \
  dataset=DGB-UNvote \
  model=SLATE \
  gpu=1 \
