@@ -274,12 +274,12 @@ class EngineLinkPred(EngineBase):
 
             self.logger.info("Training finished")
             if self.use_val:
-                self.logger.info("Best AP on val: {}".format(max(val_ap))) # To remove
-                self.logger.info("AP on test: {}".format(test_ap[val_ap.index(max(val_ap))])) # To remove
+                self.logger.info("Best AP on val: {}".format(max(val_ap))) # 
+                self.logger.info("AP on test: {}".format(test_ap[val_ap.index(max(val_ap))])) # 
                 all_ap_test.append(test_ap[val_ap.index(max(val_ap))])
                 all_roc_auc_test.append(test_roc[val_ap.index(max(val_ap))])
             else:
-                self.logger.info("AP on test: {}".format(max(test_ap))) # To remove
+                self.logger.info("AP on test: {}".format(max(test_ap))) # 
                 all_ap_test.append(max(test_ap))
                 all_roc_auc_test.append(max(test_roc))
 
@@ -288,8 +288,8 @@ class EngineLinkPred(EngineBase):
         final_roc_auc_test = np.mean(all_roc_auc_test)
         final_ap_test_std = np.std(all_ap_test)
         final_roc_auc_test_std = np.std(all_roc_auc_test)
-        self.logger.info("Mean AP on test: {}".format(final_ap_test)) # To remove 
-        self.logger.info("Std AP on test: {}".format(final_ap_test_std)) # To remove
+        self.logger.info("Mean AP on test: {}".format(final_ap_test)) #  
+        self.logger.info("Std AP on test: {}".format(final_ap_test_std)) # 
         self.logger.info("Mean ROC-AUC on test: {}".format(final_roc_auc_test))
         self.logger.info("Std AP on test: {}".format(final_roc_auc_test_std))
         
