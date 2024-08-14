@@ -44,7 +44,7 @@ The main files of interest are:
 
 - `slate/engine/engine_link_pred.py`: This is the main file where we load the models, datasets, train the model, and perform the evaluation.
 
-- `slate/data`: The discrete dynamic graph data used for the experiments.
+- `slate/data`: Some of DTDG graph data used for the experiments.
 
 - `scripts`: The example execution scripts are located in this folder.
 
