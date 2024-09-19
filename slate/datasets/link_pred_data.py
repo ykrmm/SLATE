@@ -8,7 +8,6 @@ from torch.utils.data import Dataset
 
 from slate.datasets import process_data as ld 
 from slate.datasets import Discrete_graph
-from slate.lib import compute_score_linkpred
 
 class ListLinkPredDataset(Dataset):
     def __init__(self, 
@@ -340,10 +339,6 @@ class LinkPredData:
             time = dg[:,2]
             sc = None
             
-            # Compute link pred score if needed
-            if self.score != 'none':          
-                 sc = compute_score_linkpred(edge_index,self.score,self.n_nodes)
-                 
             # Construct the Discrete graph object
             graphs.append(Discrete_graph(edge_index,weights,time,x,sc))
             list_dg.append(self.dynamic_graph[self.dynamic_graph[:,2] == t])     
