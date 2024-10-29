@@ -45,14 +45,18 @@ class DyGrEncoder(torch.nn.Module):
         self.bceloss = BCEWithLogitsLoss()
         self._create_layers()
 
-    def set_device(self,device):
+    def set_device(self, device):
         self.device = device
 
     def _create_layers(self):
         if self.one_hot:
-            self.pool_layer = torch.nn.Linear(self.num_nodes,self.conv_out_channels,bias=False)
-        else: 
-            self.pool_layer = torch.nn.Linear(self.num_features,self.conv_out_channels,bias=False)
+            self.pool_layer = torch.nn.Linear(
+                self.num_nodes, self.conv_out_channels, bias=False
+            )
+        else:
+            self.pool_layer = torch.nn.Linear(
+                self.num_features, self.conv_out_channels, bias=False
+            )
 
         self.conv_layer = GatedGraphConv(
             out_channels=self.conv_out_channels,
@@ -106,45 +110,49 @@ class DyGrEncoder(torch.nn.Module):
         H = H.squeeze()
         C = C.squeeze()
         return H_tilde, H, C
-    
-    def forward(self,graphs):
+
+    def forward(self, graphs):
         output = []
         H = None
-        C = None 
+        C = None
         for t in range(len(graphs)):
-            edge_index = to_undirected(graphs[t].edge_index).to(self.device) if self.undirected else graphs[t].edge_index.to(self.device)
+            edge_index = (
+                to_undirected(graphs[t].edge_index).to(self.device)
+                if self.undirected
+                else graphs[t].edge_index.to(self.device)
+            )
             edge_weight = torch.ones_like(edge_index[0]).to(self.device)
-            H_tilde,H,C = self.forward_snapshot(graphs[t].x.to(self.device), edge_index, edge_weight,H,C)
+            H_tilde, H, C = self.forward_snapshot(
+                graphs[t].x.to(self.device), edge_index, edge_weight, H, C
+            )
             output.append(H_tilde)
         final_emb = torch.stack(output, dim=1)
         return final_emb
-    
-    def get_loss_link_pred(self, feed_dict,graphs):
 
-        node_1, node_2, node_2_negative, _, _, _, time  = feed_dict.values()
+    def get_loss_link_pred(self, feed_dict, graphs):
+        node_1, node_2, node_2_negative, _, _, _, time = feed_dict.values()
         # run gnn
-        self.final_emb = self.forward(graphs) # [N, T, F]
-        #import ipdb; ipdb.set_trace()
-        emb_source = self.final_emb[node_1,time,:]
-        emb_pos  = self.final_emb[node_2,time,:]
-        emb_neg = self.final_emb[node_2_negative,time,:]
-        pos_score = torch.sum(emb_source*emb_pos, dim=1)
-        neg_score = torch.sum(emb_source*emb_neg, dim=1)
+        self.final_emb = self.forward(graphs)  # [N, T, F]
+        # import ipdb; ipdb.set_trace()
+        emb_source = self.final_emb[node_1, time, :]
+        emb_pos = self.final_emb[node_2, time, :]
+        emb_neg = self.final_emb[node_2_negative, time, :]
+        pos_score = torch.sum(emb_source * emb_pos, dim=1)
+        neg_score = torch.sum(emb_source * emb_neg, dim=1)
         pos_loss = self.bceloss(pos_score, torch.ones_like(pos_score))
         neg_loss = self.bceloss(neg_score, torch.zeros_like(neg_score))
         graphloss = pos_loss + neg_loss
         return graphloss
-    
-    def score_eval(self,feed_dict,graphs):
+
+    def score_eval(self, feed_dict, graphs):
         with torch.no_grad():
-            node_1, node_2, node_2_negative, _, _, _, time  = feed_dict.values()
+            node_1, node_2, node_2_negative, _, _, _, time = feed_dict.values()
             # run gnn
-            final_emb = self.forward(graphs) # [N, T, F]
+            final_emb = self.forward(graphs)  # [N, T, F]
             # for the eval we get the last embedding
-            emb_source = final_emb[node_1, time-1 ,:]
-            emb_pos  = final_emb[node_2, time-1 ,:]
-            emb_neg = final_emb[node_2_negative, time-1 ,:]
-            pos_score = torch.sum(emb_source*emb_pos, dim=1)
-            neg_score = torch.sum(emb_source*emb_neg, dim=1)        
-            return pos_score.sigmoid(),neg_score.sigmoid()
-    
+            emb_source = final_emb[node_1, time - 1, :]
+            emb_pos = final_emb[node_2, time - 1, :]
+            emb_neg = final_emb[node_2_negative, time - 1, :]
+            pos_score = torch.sum(emb_source * emb_pos, dim=1)
+            neg_score = torch.sum(emb_source * emb_neg, dim=1)
+            return pos_score.sigmoid(), neg_score.sigmoid()

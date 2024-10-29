@@ -1,16 +1,23 @@
 """Poincare ball manifold."""
-import math 
+
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from torch.nn import Parameter
 from torch.nn.modules.module import Module
-from torch_geometric.utils import add_remaining_self_loops, remove_self_loops, softmax, add_self_loops
+from torch_geometric.utils import (
+    add_remaining_self_loops,
+    remove_self_loops,
+    softmax,
+    add_self_loops,
+)
 from torch_scatter import scatter, scatter_add
-from torch_geometric.nn.conv import MessagePassing, GATConv
+from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
 import itertools
+
 
 def cosh(x, clamp=15):
     return x.clamp(-clamp, clamp).cosh()
@@ -46,8 +53,8 @@ class Artanh(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        input, = ctx.saved_tensors
-        return grad_output / (1 - input ** 2)
+        (input,) = ctx.saved_tensors
+        return grad_output / (1 - input**2)
 
 
 class Arsinh(torch.autograd.Function):
@@ -59,8 +66,8 @@ class Arsinh(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        input, = ctx.saved_tensors
-        return grad_output / (1 + input ** 2) ** 0.5
+        (input,) = ctx.saved_tensors
+        return grad_output / (1 + input**2) ** 0.5
 
 
 class Arcosh(torch.autograd.Function):
@@ -73,8 +80,9 @@ class Arcosh(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        input, = ctx.saved_tensors
-        return grad_output / (input ** 2 - 1) ** 0.5
+        (input,) = ctx.saved_tensors
+        return grad_output / (input**2 - 1) ** 0.5
+
 
 class Manifold(object):
     """
@@ -150,6 +158,7 @@ class ManifoldParameter(Parameter):
     """
     Subclass of torch.nn.Parameter for Riemannian optimization.
     """
+
     def __new__(cls, data, requires_grad, manifold, c):
         return Parameter.__new__(cls, data, requires_grad)
 
@@ -158,7 +167,11 @@ class ManifoldParameter(Parameter):
         self.manifold = manifold
 
     def __repr__(self):
-        return '{} Parameter containing:\n'.format(self.manifold.name) + super(Parameter, self).__repr__()
+        return (
+            "{} Parameter containing:\n".format(self.manifold.name)
+            + super(Parameter, self).__repr__()
+        )
+
 
 class PoincareBall(Manifold):
     """
@@ -170,31 +183,32 @@ class PoincareBall(Manifold):
 
     """
 
-    def __init__(self, ):
+    def __init__(
+        self,
+    ):
         super(PoincareBall, self).__init__()
-        self.name = 'PoincareBall'
+        self.name = "PoincareBall"
         self.min_norm = 1e-15
         self.eps = {torch.float32: 4e-3, torch.float64: 1e-5}
 
     def sqdist(self, p1, p2, c):
-        sqrt_c = c ** 0.5
+        sqrt_c = c**0.5
         dist_c = artanh(
-            sqrt_c * self.mobius_add(-p1, p2, c, dim=-1).norm(dim=-1, p=2, keepdim=False)
+            sqrt_c
+            * self.mobius_add(-p1, p2, c, dim=-1).norm(dim=-1, p=2, keepdim=False)
         )
         dist = dist_c * 2 / sqrt_c
-        return dist ** 2
+        return dist**2
 
     def dist0(self, p1, c, keepdim=False):
-        sqrt_c = c ** 0.5
-        dist_c = artanh(
-            sqrt_c * p1.norm(dim=-1, p=2, keepdim=keepdim)
-        )
+        sqrt_c = c**0.5
+        dist_c = artanh(sqrt_c * p1.norm(dim=-1, p=2, keepdim=keepdim))
         dist = dist_c * 2 / sqrt_c
         return dist
 
     def _lambda_x(self, x, c):
         x_sqnorm = torch.sum(x.data.pow(2), dim=-1, keepdim=True)
-        return 2 / (1. - c * x_sqnorm).clamp_min(self.min_norm)
+        return 2 / (1.0 - c * x_sqnorm).clamp_min(self.min_norm)
 
     def egrad2rgrad(self, p, dp, c):
         lambda_p = self._lambda_x(p, c)
@@ -203,14 +217,14 @@ class PoincareBall(Manifold):
 
     def proj(self, x, c):
         norm = torch.clamp_min(x.norm(dim=-1, keepdim=True, p=2), self.min_norm)
-        maxnorm = (1 - self.eps[x.dtype]) / (c ** 0.5)
+        maxnorm = (1 - self.eps[x.dtype]) / (c**0.5)
         try:
             cond = norm > maxnorm
-        except:
+        except Exception:
             cond = norm > maxnorm.to(norm.device)
         try:
             projected = x / norm * maxnorm
-        except: 
+        except Exception:
             projected = x / norm * maxnorm.to(norm.device)
         return torch.where(cond, projected, x)
 
@@ -221,12 +235,10 @@ class PoincareBall(Manifold):
         return u
 
     def expmap(self, u, p, c):
-        sqrt_c = c ** 0.5
+        sqrt_c = c**0.5
         u_norm = u.norm(dim=-1, p=2, keepdim=True).clamp_min(self.min_norm)
         second_term = (
-                tanh(sqrt_c / 2 * self._lambda_x(p, c) * u_norm)
-                * u
-                / (sqrt_c * u_norm)
+            tanh(sqrt_c / 2 * self._lambda_x(p, c) * u_norm) * u / (sqrt_c * u_norm)
         )
         gamma_1 = self.mobius_add(p, second_term, c)
         return gamma_1
@@ -235,49 +247,52 @@ class PoincareBall(Manifold):
         sub = self.mobius_add(-p1, p2, c)
         sub_norm = sub.norm(dim=-1, p=2, keepdim=True).clamp_min(self.min_norm)
         lam = self._lambda_x(p1, c)
-        sqrt_c = c ** 0.5
+        sqrt_c = c**0.5
         return 2 / sqrt_c / lam * artanh(sqrt_c * sub_norm) * sub / sub_norm
 
     def expmap0(self, u, c):
-        sqrt_c = c ** 0.5
-        #sqrt_c = sqrt_c.to(u.device)
+        sqrt_c = c**0.5
+        # sqrt_c = sqrt_c.to(u.device)
         u_norm = torch.clamp_min(u.norm(dim=-1, p=2, keepdim=True), self.min_norm)
         try:
             gamma_1 = tanh(sqrt_c * u_norm) * u / (sqrt_c * u_norm)
-        except:
-            gamma_1 = tanh(sqrt_c.to(u.device) * u_norm) * u / (sqrt_c.to(u.device) * u_norm)
+        except Exception:
+            gamma_1 = (
+                tanh(sqrt_c.to(u.device) * u_norm) * u / (sqrt_c.to(u.device) * u_norm)
+            )
         return gamma_1
 
     def logmap0(self, p, c):
-        sqrt_c = c ** 0.5
+        sqrt_c = c**0.5
         try:
             sqrt_c = sqrt_c.to(p.device)
-        except:
+        except Exception:
             pass
         p_norm = p.norm(dim=-1, p=2, keepdim=True).clamp_min(self.min_norm)
-        scale = 1. / sqrt_c * artanh(sqrt_c * p_norm) / p_norm
+        scale = 1.0 / sqrt_c * artanh(sqrt_c * p_norm) / p_norm
         return scale * p
 
     def mobius_add(self, x, y, c, dim=-1):
-        try: 
+        try:
             c = c.to(x.device)
-        except:
+        except Exception:
             pass
         x2 = x.pow(2).sum(dim=dim, keepdim=True)
         y2 = y.pow(2).sum(dim=dim, keepdim=True)
         xy = (x * y).sum(dim=dim, keepdim=True)
         num = (1 + 2 * c * xy + c * y2) * x + (1 - c * x2) * y
-        denom = 1 + 2 * c * xy + c ** 2 * x2 * y2
+        denom = 1 + 2 * c * xy + c**2 * x2 * y2
         return num / denom.clamp_min(self.min_norm)
 
     def mobius_matvec(self, m, x, c):
-
-        sqrt_c = c ** 0.5
+        sqrt_c = c**0.5
         sqrt_c = sqrt_c.to(x.device)
         x_norm = x.norm(dim=-1, keepdim=True, p=2).clamp_min(self.min_norm)
         mx = x @ m.transpose(-1, -2)
         mx_norm = mx.norm(dim=-1, keepdim=True, p=2).clamp_min(self.min_norm)
-        res_c = tanh(mx_norm / x_norm * artanh(sqrt_c * x_norm)) * mx / (mx_norm * sqrt_c)
+        res_c = (
+            tanh(mx_norm / x_norm * artanh(sqrt_c * x_norm)) * mx / (mx_norm * sqrt_c)
+        )
         cond = (mx == 0).prod(-1, keepdim=True, dtype=torch.uint8)
         res_0 = torch.zeros(1, dtype=res_c.dtype, device=res_c.device)
         res = torch.where(cond, res_0, res_c)
@@ -293,7 +308,7 @@ class PoincareBall(Manifold):
         uv = (u * v).sum(dim=dim, keepdim=True)
         uw = (u * w).sum(dim=dim, keepdim=True)
         vw = (v * w).sum(dim=dim, keepdim=True)
-        c2 = c ** 2
+        c2 = c**2
         a = -c2 * uw * v2 + c * vw + 2 * c2 * uv * vw
         b = -c2 * vw * u2 - c * uw
         d = 1 + 2 * c * uv + c2 * u2 * v2
@@ -303,7 +318,7 @@ class PoincareBall(Manifold):
         if v is None:
             v = u
         lambda_x = self._lambda_x(x, c)
-        return lambda_x ** 2 * (u * v).sum(dim=-1, keepdim=keepdim)
+        return lambda_x**2 * (u * v).sum(dim=-1, keepdim=keepdim)
 
     def ptransp(self, x, y, u, c):
         lambda_x = self._lambda_x(x, c)
@@ -320,27 +335,47 @@ class PoincareBall(Manifold):
         return 2 * u / lambda_x.clamp_min(self.min_norm)
 
     def to_hyperboloid(self, x, c):
-        K = 1. / c
-        sqrtK = K ** 0.5
+        K = 1.0 / c
+        sqrtK = K**0.5
         sqnorm = torch.norm(x, p=2, dim=1, keepdim=True) ** 2
         return sqrtK * torch.cat([K + sqnorm, 2 * sqrtK * x], dim=1) / (K - sqnorm)
-    
 
 
+# HYPLAYERS
 
-# HYPLAYERS 
 
 class HGATConv(nn.Module):
     """
     Hyperbolic graph convolution layer.。
     """
 
-    def __init__(self, manifold, in_features, out_features, c_in, c_out, act=F.leaky_relu,
-                 dropout=0.6, att_dropout=0.6, use_bias=True, heads=2, concat=False):
+    def __init__(
+        self,
+        manifold,
+        in_features,
+        out_features,
+        c_in,
+        c_out,
+        act=F.leaky_relu,
+        dropout=0.6,
+        att_dropout=0.6,
+        use_bias=True,
+        heads=2,
+        concat=False,
+    ):
         super(HGATConv, self).__init__()
         out_features = out_features * heads
-        self.linear = HypLinear(manifold, in_features, out_features, c_in, dropout=dropout, use_bias=use_bias)
-        self.agg = HypAttAgg(manifold, c_in, out_features, att_dropout, heads=heads, concat=concat)
+        self.linear = HypLinear(
+            manifold,
+            in_features,
+            out_features,
+            c_in,
+            dropout=dropout,
+            use_bias=use_bias,
+        )
+        self.agg = HypAttAgg(
+            manifold, c_in, out_features, att_dropout, heads=heads, concat=concat
+        )
         self.hyp_act = HypAct(manifold, c_in, c_out, act)
         self.manifold = manifold
         self.c_in = c_in
@@ -357,10 +392,21 @@ class HGCNConv(nn.Module):
     Hyperbolic graph convolution layer, from hgcn。
     """
 
-    def __init__(self, manifold, in_features, out_features, c_in=1.0, c_out=1.0, dropout=0.6, act=F.leaky_relu,
-                 use_bias=True):
+    def __init__(
+        self,
+        manifold,
+        in_features,
+        out_features,
+        c_in=1.0,
+        c_out=1.0,
+        dropout=0.6,
+        act=F.leaky_relu,
+        use_bias=True,
+    ):
         super(HGCNConv, self).__init__()
-        self.linear = HypLinear(manifold, in_features, out_features, c_in, dropout=dropout)
+        self.linear = HypLinear(
+            manifold, in_features, out_features, c_in, dropout=dropout
+        )
         self.agg = HypAgg(manifold, c_in, out_features, bias=use_bias)
         self.hyp_act = HypAct(manifold, c_in, c_out, act)
         self.manifold = manifold
@@ -378,7 +424,9 @@ class HypLinear(nn.Module):
     Hyperbolic linear layer.
     """
 
-    def __init__(self, manifold, in_features, out_features, c, dropout=0.6, use_bias=True):
+    def __init__(
+        self, manifold, in_features, out_features, c, dropout=0.6, use_bias=True
+    ):
         super(HypLinear, self).__init__()
         self.manifold = manifold
         self.in_features = in_features
@@ -387,7 +435,9 @@ class HypLinear(nn.Module):
         self.dropout = dropout
         self.use_bias = use_bias
         self.bias = nn.Parameter(torch.Tensor(out_features), requires_grad=True)
-        self.weight = nn.Parameter(torch.Tensor(out_features, in_features), requires_grad=True)
+        self.weight = nn.Parameter(
+            torch.Tensor(out_features, in_features), requires_grad=True
+        )
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -407,7 +457,7 @@ class HypLinear(nn.Module):
         return res
 
     def extra_repr(self):
-        return 'in_features={}, out_features={}, c={}'.format(
+        return "in_features={}, out_features={}, c={}".format(
             self.in_features, self.out_features, self.c
         )
 
@@ -430,9 +480,7 @@ class HypAct(Module):
         return self.manifold.proj(self.manifold.expmap0(xt, c=self.c_out), c=self.c_out)
 
     def extra_repr(self):
-        return 'c_in={}, c_out={}'.format(
-            self.c_in, self.c_out
-        )
+        return "c_in={}, c_out={}".format(self.c_in, self.c_out)
 
 
 class HypAggAtt(MessagePassing):
@@ -451,8 +499,7 @@ class HypAggAtt(MessagePassing):
         x_tangent = self.manifold.logmap0(x, c=self.c)
 
         edge_index, _ = remove_self_loops(edge_index)
-        edge_index, _ = add_self_loops(edge_index,
-                                       num_nodes=x[1].size(self.node_dim))
+        edge_index, _ = add_self_loops(edge_index, num_nodes=x[1].size(self.node_dim))
 
         edge_i = edge_index[0]
         edge_j = edge_index[1]
@@ -462,12 +509,16 @@ class HypAggAtt(MessagePassing):
         norm = self.mlp(torch.cat([x_i, x_j], dim=1))
         norm = softmax(norm, edge_i, x_i.size(0)).view(-1, 1)
         support = norm.view(-1, 1) * x_j
-        support_t_curv = scatter(support, edge_i, dim=0, dim_size=x.size(0))  # aggregate the neighbors of node_i
-        output = self.manifold.proj(self.manifold.expmap0(support_t_curv, c=self.c), c=self.c)
+        support_t_curv = scatter(
+            support, edge_i, dim=0, dim_size=x.size(0)
+        )  # aggregate the neighbors of node_i
+        output = self.manifold.proj(
+            self.manifold.expmap0(support_t_curv, c=self.c), c=self.c
+        )
         return output
 
     def extra_repr(self):
-        return 'c={}'.format(self.c)
+        return "c={}".format(self.c)
 
 
 class HypAgg(MessagePassing):
@@ -484,24 +535,26 @@ class HypAgg(MessagePassing):
         if bias:
             self.bias = Parameter(torch.Tensor(out_features))
         else:
-            self.register_parameter('bias', None)
+            self.register_parameter("bias", None)
         zeros(self.bias)
         self.mlp = nn.Sequential(nn.Linear(out_features * 2, 1))
 
     @staticmethod
     def norm(edge_index, num_nodes, edge_weight=None, improved=False, dtype=None):
         if edge_weight is None:
-            edge_weight = torch.ones((edge_index.size(1),), dtype=dtype,
-                                     device=edge_index.device)
+            edge_weight = torch.ones(
+                (edge_index.size(1),), dtype=dtype, device=edge_index.device
+            )
 
         fill_value = 1 if not improved else 2
         edge_index, edge_weight = add_remaining_self_loops(
-            edge_index, edge_weight, fill_value, num_nodes)
+            edge_index, edge_weight, fill_value, num_nodes
+        )
 
         row, col = edge_index
         deg = scatter_add(edge_weight, row, dim=0, dim_size=num_nodes)
         deg_inv_sqrt = deg.pow(-0.5)
-        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+        deg_inv_sqrt[deg_inv_sqrt == float("inf")] = 0
 
         return edge_index, deg_inv_sqrt[row] * edge_weight * deg_inv_sqrt[col]
 
@@ -512,16 +565,22 @@ class HypAgg(MessagePassing):
         node_j = edge_index[1]
         x_j = torch.nn.functional.embedding(node_j, x_tangent)
         support = norm.view(-1, 1) * x_j
-        support_t = scatter(support, node_i, dim=0, dim_size=x.size(0))  # aggregate the neighbors of node_i
-        output = self.manifold.proj(self.manifold.expmap0(support_t, c=self.c), c=self.c)
+        support_t = scatter(
+            support, node_i, dim=0, dim_size=x.size(0)
+        )  # aggregate the neighbors of node_i
+        output = self.manifold.proj(
+            self.manifold.expmap0(support_t, c=self.c), c=self.c
+        )
         return output
 
     def extra_repr(self):
-        return 'c={}'.format(self.c)
+        return "c={}".format(self.c)
 
 
 class HypAttAgg(MessagePassing):
-    def __init__(self, manifold, c, out_features, att_dropout=0.6, heads=1, concat=False):
+    def __init__(
+        self, manifold, c, out_features, att_dropout=0.6, heads=1, concat=False
+    ):
         super(HypAttAgg, self).__init__()
         self.manifold = manifold
         self.dropout = att_dropout
@@ -530,15 +589,18 @@ class HypAttAgg(MessagePassing):
         self.heads = heads
         self.c = c
         self.concat = concat
-        self.att_i = Parameter(torch.Tensor(1, heads, self.out_channels), requires_grad=True)
-        self.att_j = Parameter(torch.Tensor(1, heads, self.out_channels), requires_grad=True)
+        self.att_i = Parameter(
+            torch.Tensor(1, heads, self.out_channels), requires_grad=True
+        )
+        self.att_j = Parameter(
+            torch.Tensor(1, heads, self.out_channels), requires_grad=True
+        )
         glorot(self.att_i)
         glorot(self.att_j)
 
     def forward(self, x, edge_index):
         edge_index, _ = remove_self_loops(edge_index)
-        edge_index, _ = add_self_loops(edge_index,
-                                       num_nodes=x.size(self.node_dim))
+        edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(self.node_dim))
 
         edge_index_i = edge_index[0]
         edge_index_j = edge_index[1]
@@ -560,11 +622,13 @@ class HypAttAgg(MessagePassing):
             support_t = support_t.view(-1, self.heads * self.out_channels)
         else:
             support_t = support_t.mean(dim=1)
-        support_t = self.manifold.proj(self.manifold.expmap0(support_t, c=self.c), c=self.c)
+        support_t = self.manifold.proj(
+            self.manifold.expmap0(support_t, c=self.c), c=self.c
+        )
 
         return support_t
 
-    '''
+    """
     def forward(self, x, edge_index):
         x_tangent0 = self.manifold.logmap0(x, c=self.c)  # project to origin
         out = self.propagate(edge_index, x=x_tangent0, num_nodes=x.size(0),original_x=x)
@@ -588,7 +652,7 @@ class HypAttAgg(MessagePassing):
         alpha = F.dropout(alpha, p=self.dropout, training=self.training)
 
         return x_j * alpha.view(-1, self.heads, 1)
-    '''
+    """
 
 
 # refer to: https://github.com/ferrine/hyrnn/blob/master/hyrnn/nets.py
@@ -597,8 +661,12 @@ class HypGRU(nn.Module):
         super(HypGRU, self).__init__()
         self.manifold = PoincareBall()
         self.nhid = args.nhid
-        self.weight_ih = Parameter(torch.Tensor(3 * args.nhid, args.nhid), requires_grad=True).to(args.device)
-        self.weight_hh = Parameter(torch.Tensor(3 * args.nhid, args.nhid), requires_grad=True).to(args.device)
+        self.weight_ih = Parameter(
+            torch.Tensor(3 * args.nhid, args.nhid), requires_grad=True
+        ).to(args.device)
+        self.weight_hh = Parameter(
+            torch.Tensor(3 * args.nhid, args.nhid), requires_grad=True
+        ).to(args.device)
         if args.bias:
             bias = nn.Parameter(torch.zeros(3, args.nhid) * 1e-5, requires_grad=False)
             self.bias = self.manifold.expmap0(bias).to(args.device)
@@ -612,16 +680,30 @@ class HypGRU(nn.Module):
             torch.nn.init.uniform_(weight, -stdv, stdv)
 
     def forward(self, hyperx, hyperh):
-        out = self.mobius_gru_cell(hyperx, hyperh, self.weight_ih, self.weight_hh, self.bias)
+        out = self.mobius_gru_cell(
+            hyperx, hyperh, self.weight_ih, self.weight_hh, self.bias
+        )
         return out
 
-    def mobius_gru_cell(self, input, hx, weight_ih, weight_hh, bias, nonlin=None, ):
+    def mobius_gru_cell(
+        self,
+        input,
+        hx,
+        weight_ih,
+        weight_hh,
+        bias,
+        nonlin=None,
+    ):
         W_ir, W_ih, W_iz = weight_ih.chunk(3)
         b_r, b_h, b_z = bias
         W_hr, W_hh, W_hz = weight_hh.chunk(3)
 
-        z_t = self.manifold.logmap0(self.one_rnn_transform(W_hz, hx, W_iz, input, b_z)).sigmoid()
-        r_t = self.manifold.logmap0(self.one_rnn_transform(W_hr, hx, W_ir, input, b_r)).sigmoid()
+        z_t = self.manifold.logmap0(
+            self.one_rnn_transform(W_hz, hx, W_iz, input, b_z)
+        ).sigmoid()
+        r_t = self.manifold.logmap0(
+            self.one_rnn_transform(W_hr, hx, W_ir, input, b_r)
+        ).sigmoid()
 
         rh_t = self.manifold.mobius_pointwise_mul(r_t, hx)
         h_tilde = self.one_rnn_transform(W_hh, rh_t, W_ih, input, b_h)
@@ -629,7 +711,9 @@ class HypGRU(nn.Module):
         if nonlin is not None:
             h_tilde = self.manifold.mobius_fn_apply(nonlin, h_tilde)
         delta_h = self.manifold.mobius_add(-hx, h_tilde)
-        h_out = self.manifold.mobius_add(hx, self.manifold.mobius_pointwise_mul(z_t, delta_h))
+        h_out = self.manifold.mobius_add(
+            hx, self.manifold.mobius_pointwise_mul(z_t, delta_h)
+        )
         return h_out
 
     def one_rnn_transform(self, W, h, U, x, b):
@@ -638,7 +722,15 @@ class HypGRU(nn.Module):
         Wh_plus_Ux = self.manifold.mobius_add(W_otimes_h, U_otimes_x)
         return self.manifold.mobius_add(Wh_plus_Ux, b)
 
-    def mobius_linear(self, input, weight, bias=None, hyperbolic_input=True, hyperbolic_bias=True, nonlin=None):
+    def mobius_linear(
+        self,
+        input,
+        weight,
+        bias=None,
+        hyperbolic_input=True,
+        hyperbolic_bias=True,
+        nonlin=None,
+    ):
         if hyperbolic_input:
             output = self.manifold.mobius_matvec(weight, input)
         else:
@@ -652,8 +744,3 @@ class HypGRU(nn.Module):
             output = self.manifold.mobius_fn_apply(nonlin, output)
         output = self.manifold.project(output)
         return output
-    
-
-
-
-

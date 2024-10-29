@@ -3,8 +3,9 @@ from torch.nn import Parameter
 from torch.nn.modules.loss import BCEWithLogitsLoss, MSELoss
 from torch_geometric.nn import ChebConv
 from torch_geometric.nn.inits import glorot, zeros
-from torch_geometric.utils import to_undirected
 from slate.models.reg_mlp import RegressionModel
+
+
 class GCLSTM(torch.nn.Module):
     r"""An implementation of the the Integrated Graph Convolutional Long Short Term
     Memory Cell. For details see this paper: `"GC-LSTM: Graph Convolution Embedded LSTM
@@ -71,11 +72,10 @@ class GCLSTM(torch.nn.Module):
         self._create_parameters_and_layers()
         self._set_parameters()
 
-    def set_device(self,device):
+    def set_device(self, device):
         self.device = device
 
     def _create_input_gate_parameters_and_layers(self):
-
         self.conv_i = ChebConv(
             in_channels=self.out_channels,
             out_channels=self.out_channels,
@@ -88,7 +88,6 @@ class GCLSTM(torch.nn.Module):
         self.b_i = Parameter(torch.Tensor(1, self.out_channels))
 
     def _create_forget_gate_parameters_and_layers(self):
-
         self.conv_f = ChebConv(
             in_channels=self.out_channels,
             out_channels=self.out_channels,
@@ -101,7 +100,6 @@ class GCLSTM(torch.nn.Module):
         self.b_f = Parameter(torch.Tensor(1, self.out_channels))
 
     def _create_cell_state_parameters_and_layers(self):
-
         self.conv_c = ChebConv(
             in_channels=self.out_channels,
             out_channels=self.out_channels,
@@ -114,7 +112,6 @@ class GCLSTM(torch.nn.Module):
         self.b_c = Parameter(torch.Tensor(1, self.out_channels))
 
     def _create_output_gate_parameters_and_layers(self):
-
         self.conv_o = ChebConv(
             in_channels=self.out_channels,
             out_channels=self.out_channels,
@@ -128,16 +125,20 @@ class GCLSTM(torch.nn.Module):
 
     def _create_parameters_and_layers(self):
         if self.one_hot:
-            self.pool_layer = torch.nn.Linear(self.num_nodes,self.in_channels,bias=False)
-        else: 
-            self.pool_layer = torch.nn.Linear(self.num_features,self.in_channels,bias=False)
+            self.pool_layer = torch.nn.Linear(
+                self.num_nodes, self.in_channels, bias=False
+            )
+        else:
+            self.pool_layer = torch.nn.Linear(
+                self.num_features, self.in_channels, bias=False
+            )
         self._create_input_gate_parameters_and_layers()
         self._create_forget_gate_parameters_and_layers()
         self._create_cell_state_parameters_and_layers()
         self._create_output_gate_parameters_and_layers()
 
-        if self.task_name == 'node_reg':
-            self.pred_reg = RegressionModel(self.in_channels,self.in_channels)
+        if self.task_name == "node_reg":
+            self.pred_reg = RegressionModel(self.in_channels, self.in_channels)
 
     def _set_parameters(self):
         glorot(self.W_i)
@@ -160,11 +161,13 @@ class GCLSTM(torch.nn.Module):
         return C
 
     def _calculate_input_gate(self, X, edge_index, edge_weight, H, C, lambda_max):
-        I = torch.matmul(X, self.W_i)
-        I = I + self.conv_i(H, edge_index, edge_weight, lambda_max=lambda_max)
-        I = I + self.b_i
-        I = torch.sigmoid(I)
-        return I
+        input_gate = torch.matmul(X, self.W_i)
+        input_gate = input_gate + self.conv_i(
+            H, edge_index, edge_weight, lambda_max=lambda_max
+        )
+        input_gate = input_gate + self.b_i
+        input_gate = torch.sigmoid(input_gate)
+        return input_gate
 
     def _calculate_forget_gate(self, X, edge_index, edge_weight, H, C, lambda_max):
         F = torch.matmul(X, self.W_f)
@@ -173,23 +176,27 @@ class GCLSTM(torch.nn.Module):
         F = torch.sigmoid(F)
         return F
 
-    def _calculate_cell_state(self, X, edge_index, edge_weight, H, C, I, F, lambda_max):
+    def _calculate_cell_state(
+        self, X, edge_index, edge_weight, H, C, input_gate, F, lambda_max
+    ):
         T = torch.matmul(X, self.W_c)
         T = T + self.conv_c(H, edge_index, edge_weight, lambda_max=lambda_max)
         T = T + self.b_c
         T = torch.tanh(T)
-        C = F * C + I * T
+        C = F * C + input_gate * T
         return C
 
     def _calculate_output_gate(self, X, edge_index, edge_weight, H, C, lambda_max):
-        O = torch.matmul(X, self.W_o)
-        O = O + self.conv_o(H, edge_index, edge_weight, lambda_max=lambda_max)
-        O = O + self.b_o
-        O = torch.sigmoid(O)
-        return O
+        output_gate = torch.matmul(X, self.W_o)
+        output_gate = output_gate + self.conv_o(
+            H, edge_index, edge_weight, lambda_max=lambda_max
+        )
+        output_gate = output_gate + self.b_o
+        output_gate = torch.sigmoid(output_gate)
+        return output_gate
 
-    def _calculate_hidden_state(self, O, C):
-        H = O * torch.tanh(C)
+    def _calculate_hidden_state(self, output_gate, C):
+        H = output_gate * torch.tanh(C)
         return H
 
     def forward_snapshot(
@@ -222,69 +229,82 @@ class GCLSTM(torch.nn.Module):
         X = self.pool_layer(X)
         H = self._set_hidden_state(X, H)
         C = self._set_cell_state(X, C)
-        I = self._calculate_input_gate(X, edge_index, edge_weight, H, C, lambda_max)
+        input_gate = self._calculate_input_gate(
+            X, edge_index, edge_weight, H, C, lambda_max
+        )
         F = self._calculate_forget_gate(X, edge_index, edge_weight, H, C, lambda_max)
-        C = self._calculate_cell_state(X, edge_index, edge_weight, H, C, I, F, lambda_max)
-        O = self._calculate_output_gate(X, edge_index, edge_weight, H, C, lambda_max)
-        H = self._calculate_hidden_state(O, C)
+        C = self._calculate_cell_state(
+            X, edge_index, edge_weight, H, C, input_gate, F, lambda_max
+        )
+        output_gate = self._calculate_output_gate(
+            X, edge_index, edge_weight, H, C, lambda_max
+        )
+        H = self._calculate_hidden_state(output_gate, C)
         return H, C
-    
-    def forward(self,graphs):
+
+    def forward(self, graphs):
         output = []
         H = None
-        C = None 
+        C = None
         for t in range(len(graphs)):
-            edge_index = graphs[t].edge_index.to(self.device) if self.undirected else graphs[t].edge_index.to(self.device)
-            edge_weight = torch.ones_like(edge_index[0], dtype=torch.float).to(self.device)
-            H,C = self.forward_snapshot(graphs[t].x.to(self.device), edge_index, edge_weight,H,C)
+            edge_index = (
+                graphs[t].edge_index.to(self.device)
+                if self.undirected
+                else graphs[t].edge_index.to(self.device)
+            )
+            edge_weight = torch.ones_like(edge_index[0], dtype=torch.float).to(
+                self.device
+            )
+            H, C = self.forward_snapshot(
+                graphs[t].x.to(self.device), edge_index, edge_weight, H, C
+            )
             output.append(H)
         final_emb = torch.stack(output, dim=1)
         return final_emb
-    
-    def get_loss_link_pred(self, feed_dict,graphs):
 
-        node_1, node_2, node_2_negative, _, _, _, time  = feed_dict.values()
+    def get_loss_link_pred(self, feed_dict, graphs):
+        node_1, node_2, node_2_negative, _, _, _, time = feed_dict.values()
         # run gnn
-        self.final_emb = self.forward(graphs) # [N, T, F]
-        emb_source = self.final_emb[node_1,time,:]
-        emb_pos  = self.final_emb[node_2,time,:]
-        emb_neg = self.final_emb[node_2_negative,time,:]
-        pos_score = torch.sum(emb_source*emb_pos, dim=1)
-        neg_score = torch.sum(emb_source*emb_neg, dim=1)
+        self.final_emb = self.forward(graphs)  # [N, T, F]
+        emb_source = self.final_emb[node_1, time, :]
+        emb_pos = self.final_emb[node_2, time, :]
+        emb_neg = self.final_emb[node_2_negative, time, :]
+        pos_score = torch.sum(emb_source * emb_pos, dim=1)
+        neg_score = torch.sum(emb_source * emb_neg, dim=1)
         pos_loss = self.bceloss(pos_score, torch.ones_like(pos_score))
         neg_loss = self.bceloss(neg_score, torch.zeros_like(neg_score))
         graphloss = pos_loss + neg_loss
         return graphloss, pos_score.detach().sigmoid(), neg_score.detach().sigmoid()
-    
-    def get_loss_node_pred(self,feed_dict,graphs):
-        node, y, time  = feed_dict.values()
+
+    def get_loss_node_pred(self, feed_dict, graphs):
+        node, y, time = feed_dict.values()
         y = y.view(-1, 1)
         # run gnn
-        final_emb = self.forward(graphs) # [N, T, F]
-        emb_node = final_emb[node,time,:]
+        final_emb = self.forward(graphs)  # [N, T, F]
+        emb_node = final_emb[node, time, :]
         pred = self.pred_reg(emb_node)
         graphloss = self.mseloss(pred, y)
         return graphloss
-    
-    def score_eval(self,feed_dict,graphs):
+
+    def score_eval(self, feed_dict, graphs):
         with torch.no_grad():
-            node_1, node_2, node_2_negative, _, _, _, time  = feed_dict.values()
+            node_1, node_2, node_2_negative, _, _, _, time = feed_dict.values()
             # run gnn
-            final_emb = self.forward(graphs) # [N, T, F]
+            final_emb = self.forward(graphs)  # [N, T, F]
             # time-1 because we want to predict the next time step in eval
-            emb_source = final_emb[node_1, time-1 ,:]
-            emb_pos  = final_emb[node_2, time-1 ,:]
-            emb_neg = final_emb[node_2_negative, time-1 ,:]
-            pos_score = torch.sum(emb_source*emb_pos, dim=1)
-            neg_score = torch.sum(emb_source*emb_neg, dim=1)        
-            return pos_score.sigmoid(),neg_score.sigmoid()
-        
-    def score_eval_node_reg(self,feed_dict,graphs):
-        node, y, time  = feed_dict.values()
+            emb_source = final_emb[node_1, time - 1, :]
+            emb_pos = final_emb[node_2, time - 1, :]
+            emb_neg = final_emb[node_2_negative, time - 1, :]
+            pos_score = torch.sum(emb_source * emb_pos, dim=1)
+            neg_score = torch.sum(emb_source * emb_neg, dim=1)
+            return pos_score.sigmoid(), neg_score.sigmoid()
+
+    def score_eval_node_reg(self, feed_dict, graphs):
+        node, y, time = feed_dict.values()
         y = y.view(-1, 1)
         # run gnn
-        final_emb = self.forward(graphs) # [N, T, F]
-        emb_node = final_emb[node,time-1,:]
+        final_emb = self.forward(graphs)  # [N, T, F]
+        emb_node = final_emb[node, time - 1, :]
         pred = self.pred_reg(emb_node)
-        
+
         return pred.squeeze()

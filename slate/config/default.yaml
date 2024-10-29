@@ -1,6 +1,3 @@
-
-
-
 task_name: link_pred
 gpu: 0
 multithreading: False
@@ -16,7 +13,6 @@ defaults:
 
     - optim: adam
 
-    
     - override hydra/job_logging: colorlog
 
     - override hydra/hydra_logging: colorlog

@@ -1,4 +1,3 @@
-from slate.models.lstm_gt import LSTMGT
 from slate.models.dysat import DySat
 from slate.models.random_model import RandomModel
 from slate.models.static_models import StaticGNN
@@ -14,22 +13,23 @@ from slate.models.reg_mlp import RegressionModel
 from slate.models.slate_model import SLATE
 from slate.models.vgrnn import VGRNN
 from slate.models.htgn import HTGN
-from slate.models.gc_lstm_vn import GCLSTM_VN
+
 __all__ = [
-    'SLATE',
-    'LSTMGT',
-    'DySat',
-    'RandomModel', 
-    'StaticGNN',
-    'MLP',
-    'EvolveGCNH',
-    'EvolveGCNO',
-    'GConvLSTM',
-    'GCLSTM',
-    'DyGrEncoder',
-    'EdgeBank',
-    'RegressionModel',
-    'VGRNN',
-    'HTGN',
-    'GCLSTM_VN'
+    "SLATE",
+    "LSTMGT",
+    "DySat",
+    "RandomModel",
+    "StaticGNN",
+    "MLP",
+    "EvolveGCNH",
+    "EvolveGCNO",
+    "GConvLSTM",
+    "GCLSTM",
+    "DyGrEncoder",
+    "EdgeBank",
+    "RegressionModel",
+    "VGRNN",
+    "HTGN",
+    "GCLSTM_VN",
+    "PositionalEncoding",
 ]
