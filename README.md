@@ -1,4 +1,4 @@
-# SLATE Model (Under Review Neurips 2024 )
+# SLATE Model (Neurips 2024)
 
 This is the official repository for the paper SLATE: Supra Laplacian Encoding for Transformer on Dynamic Graph.
 
@@ -11,11 +11,7 @@ conda create -n SLATE python=3.9
 conda activate SLATE
 pip install -e .
 ```
-Try : 
-```
-pip install -r requirements.txt
-```
-If you encounter a bug, please install at least the following packages in the following order:
+Requirements : 
 
 ```
 torch==2.2.2+cu118
@@ -45,8 +41,6 @@ The main files of interest are:
 
 - `scripts`: The example execution scripts are located in this folder.
 
-### About Hydra: 
-We use Hydra to execute scripts. Hydra overwrites the configuration files located in `slate/config/`. For example, the configuration file for the SLATE model is in `slate/config/model/SLATE.yaml`.
 
 ## Notebooks
 
