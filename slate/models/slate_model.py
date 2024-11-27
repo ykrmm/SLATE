@@ -40,6 +40,7 @@ class SLATE(nn.Module):
         dim_pe: int,
         norm_lap: str,
         add_eig_vals: bool,
+        which: str,
         remove_isolated: bool,
         add_vn: bool,
         isolated_in_transformer: bool,
@@ -49,6 +50,7 @@ class SLATE(nn.Module):
         bias_lin_pe: bool,
         dim_feedforward: int,
         nhead: int,
+        dropout_trsf: float,
         num_layers_trsf: int,
         aggr: str,
         one_hot: bool = True,
@@ -72,6 +74,9 @@ class SLATE(nn.Module):
         self.light_ca = light_ca
         self.flash = flash
         self.use_performer = use_performer
+        self.dim_feedforward = dim_feedforward
+        self.nhead = nhead
+        self.dropout_trsf = dropout_trsf
         self.nhead_ca = nhead_ca
         self.dropout_ca = dropout_ca
         self.bias_ca = bias_ca
@@ -86,12 +91,11 @@ class SLATE(nn.Module):
         self.dim_pe = dim_pe
         self.add_lin_pe = add_lin_pe
         self.bias_lin_pe = bias_lin_pe
-        self.dim_feedforward = dim_feedforward
-        self.nhead = nhead
         self.norm_lap = norm_lap
         self.add_eig_vals = add_eig_vals
         self.add_vn = add_vn
         self.remove_isolated = remove_isolated
+        self.which = which
         self.isolated_in_transformer = isolated_in_transformer
         self.add_time_connection = add_time_connection
         self.p_self_time = p_self_time
@@ -125,6 +129,7 @@ class SLATE(nn.Module):
             normalization=self.norm_lap,
             is_undirected=self.undirected,
             add_eig_vals=self.add_eig_vals,
+            which=self.which,
         )
 
         self.in_dim_pe = 2 * self.dim_pe if self.add_eig_vals else self.dim_pe
@@ -152,7 +157,7 @@ class SLATE(nn.Module):
 
         if self.use_performer:
             # PROTOTYPE with naive parameters for rebuttal
-            print("ENCODER: Transformer")
+            print("ENCODER: Performer")
             self.spatio_temp_attn = Performer(
                 dim=self.dim_emb,
                 depth=self.num_layers_trsf,
@@ -167,6 +172,7 @@ class SLATE(nn.Module):
             encoder_layer = nn.TransformerEncoderLayer(
                 d_model=self.dim_emb,
                 nhead=self.nhead,
+                dropout=self.dropout_trsf,
                 dim_feedforward=self.dim_feedforward,
                 batch_first=True,
                 norm_first=self.norm_first,
@@ -220,7 +226,6 @@ class SLATE(nn.Module):
         edge_index = edge_index.to(self.device)
         edge_weight = edge_weight.to(self.device)
         mask = mask.to(self.device)
-
         # The number of nodes in the supra graph
         num_nodes_supra_adj = (
             len(torch.unique(edge_index))
@@ -241,16 +246,21 @@ class SLATE(nn.Module):
             all_pe = torch.zeros((self.num_nodes_embedding * w, self.in_dim_pe)).to(
                 self.device
             )
-            all_pe[mask == 1] = pe
+            all_pe[mask] = pe
             node_emb = self.node_embedding(
                 torch.arange(self.num_nodes_embedding).to(self.device)
             )
-            tokens = node_emb[:-1, :].repeat(w, 1)
-            vn_emb = node_emb[-1].repeat(w, 1)
-            tokens = torch.cat(
-                (tokens, vn_emb), dim=0
-            )  # Add the virtual nodes at the end of the tokens matrix (easyer to process later)
-            # Add the positional encoding to the tokens
+            if self.add_vn:
+                tokens = node_emb[:-1, :].repeat(w, 1)
+                vn_emb = node_emb[-1].repeat(w, 1)
+                tokens = torch.cat(
+                    (tokens, vn_emb), dim=0
+                )  # Add the virtual nodes at the end of the tokens matrix (easyer to process later)
+            else:
+                tokens = []
+                for i in range(w):
+                    tokens.append(node_emb)
+                tokens = torch.vstack(tokens)
             tokens = torch.cat((tokens, all_pe), dim=1)
         # Fifth : Project linearly the tokens containing node emb and supraPE
         tokens = self.lin_input(
@@ -348,7 +358,9 @@ class SLATE(nn.Module):
         """
         with torch.no_grad():
             with sdp_kernel(
-                enable_flash=self.flash, enable_math=False, enable_mem_efficient=False
+                enable_flash=self.flash,
+                enable_math=not (self.flash),
+                enable_mem_efficient=False,
             ):
                 node_1, node_2, node_2_negative, _, s_pos, s_neg, time = (
                     feed_dict.values()

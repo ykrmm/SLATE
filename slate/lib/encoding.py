@@ -74,6 +74,7 @@ class AddSupraLaplacianPE:
         is_undirected: bool = False,
         normalization: str = "sym",
         add_eig_vals: bool = False,
+        which: str = "SR",
         **kwargs: Any,
     ) -> None:
         self.k = k
@@ -82,6 +83,7 @@ class AddSupraLaplacianPE:
         self.normalization = normalization
         self.add_eig_vals = add_eig_vals
         self.ncv = None
+        self.which = which
         assert self.normalization in [None, "sym", "rw"], "Invalid normalization"
 
     def __call__(
@@ -109,17 +111,16 @@ class AddSupraLaplacianPE:
         )
 
         L = to_scipy_sparse_matrix(edge_index, edge_weight, num_nodes)
-
         eig_fn = eigs if not self.is_undirected else eigsh
-        max_attempts = 10  # Nombre maximum de tentatives
-        attempts = 0  # Compteur de tentatives
+        max_attempts = 10
+        attempts = 0
 
         while attempts < max_attempts:
             try:
                 eig_vals, eig_vecs = eig_fn(  # type: ignore
                     L,
                     k=self.k + 1,
-                    which="SR" if not self.is_undirected else "SA",
+                    which=self.which,
                     return_eigenvectors=True,
                     ncv=self.ncv,
                     **self.kwargs,
@@ -138,6 +139,7 @@ class AddSupraLaplacianPE:
         pe *= sign
         if self.add_eig_vals:
             eig_vals = torch.from_numpy(eig_vals).repeat(num_nodes, 1)
+            eig_vals = eig_vals[:, 1 : self.k + 1]
             pe = torch.cat([pe, eig_vals], dim=1)
         pe = pe.to(edge_index.device)
         pe = F.normalize(pe, p=2, dim=-1)

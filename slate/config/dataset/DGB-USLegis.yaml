@@ -1,5 +1,5 @@
 name: USLegis
-datadir: '/Absolute/path/to/data'
+datadir: '../data'
 num_nodes: 225
 num_edges: 60396
 timestamp: 12

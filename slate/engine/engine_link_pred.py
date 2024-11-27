@@ -2,9 +2,10 @@ from typing import Dict, List, Any
 import logging
 import random
 import time
-
+import wandb
 import numpy as np
 import torch
+import omegaconf
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 from torcheval.metrics import BinaryAUROC, BinaryAUPRC
@@ -188,7 +189,17 @@ class EngineLinkPred(EngineBase):
             "Undirected graphs: {}".format(self.config.model.link_pred.undirected)
         )
         self.logger.info("One hot features: {}".format(self.config.model.one_hot))
-
+        # wandb
+        config_wandb = omegaconf.OmegaConf.to_container(
+            self.config, resolve=True, throw_on_missing=True
+        )
+        wandb.init(
+            entity=self.config.wandb_conf.entity,
+            project=self.config.wandb_conf.project_link_pred,
+            name=self.config.wandb_conf.name,
+            config=config_wandb,
+            reinit=True,  # reinit=True is necessary when calling multirun with hydra
+        )
         # amp
         try:
             self.use_amp = self.model.flash
@@ -284,6 +295,15 @@ class EngineLinkPred(EngineBase):
                     mean_loss, scores = self.train(train_dts, t_train)
                     st = time.time()
                     self.logger.info(f"Time to train one epoch: {st-et:.4f} s")
+                    if i == 0:
+                        # only log the first run
+                        wandb.log(
+                            {"Loss Train " + str(self.data_name): mean_loss}, step=ep
+                        )
+                        if self.log_train:
+                            current_train_ap = scores["AP"]
+                            self.logger.info(f"AP Train: {current_train_ap}")
+                            train_ap.append(current_train_ap)
                     if self.log_train:
                         current_train_ap = scores["AP"]
                         self.logger.info(f"AP Train: {current_train_ap}")
@@ -296,6 +316,12 @@ class EngineLinkPred(EngineBase):
                     if self.use_val:
                         # val
                         scores = self.eval(val_dts, [t_train, t_val])
+                        if i == 0:
+                            for name, score in scores.items():
+                                wandb.log(
+                                    {name + " Val " + str(self.data_name): score},
+                                    step=ep,
+                                )
                         current_val_ap = scores["AP"]
                         current_val_auc = scores["ROC-AUC"]
                         self.logger.info(f"AUC Val: {current_val_auc}")
@@ -304,6 +330,11 @@ class EngineLinkPred(EngineBase):
 
                     # test
                     scores = self.eval(test_dts, [t_val, t_test])
+                    if i == 0:
+                        for name, score in scores.items():
+                            wandb.log(
+                                {name + " Test " + str(self.data_name): score}, step=ep
+                            )
                     self.logger.info(f"AP Test: {scores['AP']}")
                     self.logger.info(f"AUC Test: {scores['ROC-AUC']}")
                     test_ap.append(scores["AP"])
@@ -347,3 +378,8 @@ class EngineLinkPred(EngineBase):
         self.logger.info("Std AP on test: {}".format(final_ap_test_std))  #
         self.logger.info("Mean ROC-AUC on test: {}".format(final_roc_auc_test))
         self.logger.info("Std AP on test: {}".format(final_roc_auc_test_std))
+        wandb.run.summary["Mean AP Test"] = final_ap_test
+        wandb.run.summary["Mean ROC-AUC Test"] = final_roc_auc_test
+        wandb.run.summary["Std AP Test"] = final_ap_test_std
+        wandb.run.summary["Std ROC-AUC Test"] = final_roc_auc_test_std
+        wandb.finish()

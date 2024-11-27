@@ -1,0 +1,4 @@
+entity: your_wandb
+project: SLATE 
+project_link_pred: SLATE
+name: ${model.name}_${task.sampling}_${dataset.name}

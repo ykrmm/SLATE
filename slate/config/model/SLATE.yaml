@@ -27,6 +27,7 @@ link_pred:
   dim_pe: 12
   norm_lap: 'sym'
   add_eig_vals: False
+  which: 'SA'
   add_vn: False
   remove_isolated: True
   isolated_in_transformer: False
@@ -36,6 +37,7 @@ link_pred:
   add_lin_pe: True
   dim_feedforward: 256
   nhead: 4
+  dropout_trsf: 0.1
   num_layers_trsf: 1
   aggr: 'last'
   one_hot: ${model.one_hot}

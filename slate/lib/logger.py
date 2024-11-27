@@ -1,4 +1,4 @@
 import os
 import logging
 
-LOGGER = logging.getLogger(os.getenv("LOGGING_NAME", "DGT"))
+LOGGER = logging.getLogger(os.getenv("LOGGING_NAME", "SLATE"))

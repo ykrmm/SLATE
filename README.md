@@ -2,9 +2,6 @@
 
 This is the official repository for the paper SLATE: Supra Laplacian Encoding for Transformer on Dynamic Graph.
 
-This code is intended solely for the use of the reviewers and the Area Chair. We trust your discretion and kindly ask that you do not share it until the final decisions are released.
-
-This is a provisional code; due to time constraints, it is not perfectly commented, it may contains some bugs.
 
 ![](./slate_model.png)
 
@@ -59,6 +56,7 @@ We have provided a demonstration of the SLATE model as well as the main operatio
 - Transform a dynamic graph into a spatio-temporally connected multilayer graph.
 - Show the projections of the eigenvectors forming the basis of our spatio-temporal encoding on the transformed multilayer graph.
 - Demonstrate how to generate the token sequence as input for the transformer.
+- (TODO) Show cross-attention between historical pair of nodes. 
 
 ### `notebooks/supralaplacian_visu.ipynb`
 
@@ -73,5 +71,18 @@ You can then launch the script:
 
 
 ```
-sh scripts/ex_slate_trade.sh 
+sh scripts/slate_trade.sh 
+```
+
+## Citation 
+
+```
+@inproceedings{
+karmim2024supralaplacian,
+title={Supra-Laplacian Encoding for Transformer on Dynamic Graphs},
+author={Yannis Karmim and Marc Lafon and Raphael Fournier-S'niehotta and Nicolas THOME},
+booktitle={The Thirty-eighth Annual Conference on Neural Information Processing Systems},
+year={2024},
+url={https://openreview.net/forum?id=vP9qAzr2Gw}
+}
 ```

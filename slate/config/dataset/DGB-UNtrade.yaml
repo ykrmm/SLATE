@@ -1,5 +1,5 @@
 name: UNtrade
-datadir: '/Absolute/path/to/data'
+datadir: '../data'
 num_nodes: 255
 num_edges: 507497
 timestamp: 32
