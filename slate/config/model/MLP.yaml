@@ -1,0 +1,8 @@
+name: MLP
+evolving: True
+one_hot: False
+
+node_classif: 
+  _target_: dgt.models.MLP
+  features_dim: ${dataset.features_dim}
+  num_classes: ${dataset.num_classes}

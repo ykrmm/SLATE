@@ -1,0 +1,40 @@
+evolving: True # If false Model does not considere links that appeared in previous timestamp
+one_hot: True
+score: 'none'
+pred_next: False # If true, the model will predict the next timestamp links
+name: EvolveGCNH
+clip_grad: True
+
+link_pred:
+  _target_: dgt.models.EvolveGCNH
+  num_nodes: ${dataset.num_nodes}
+  num_features: ${dataset.features_dim}
+  in_channels: 128
+  num_layers_rnn: 1
+  time_length: ${dataset.timestamp}
+  improved: False
+  cached: True
+  normalize: True
+  add_self_loops: True
+  use_edge_weight: False
+  undirected: False 
+  neg_weight: 1.0
+  one_hot: ${model.one_hot}
+  task_name: 'link_pred'
+node_reg:
+  _target_: dgt.models.EvolveGCNH
+  num_nodes: ${dataset.num_nodes}
+  num_features: ${dataset.features_dim}
+  in_channels: 128
+  num_layers_rnn: 1
+  time_length: ${dataset.timestamp}
+  improved: False
+  cached: True
+  normalize: True
+  add_self_loops: True
+  use_edge_weight: False
+  undirected: False 
+  neg_weight: 1.0
+  one_hot: ${model.one_hot}
+  task_name: 'node_reg'
+

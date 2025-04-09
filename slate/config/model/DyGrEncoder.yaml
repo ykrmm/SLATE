@@ -1,0 +1,17 @@
+evolving: False # If false Model does not considere links that appeared in previous timestamp
+one_hot: True
+name: DyGrEncoder
+pred_next: False
+clip_grad: False
+
+link_pred:
+  _target_: dgt.models.DyGrEncoder
+  num_nodes: ${dataset.num_nodes}
+  num_features: ${sub:${dataset.timestamp},1}
+  in_channels: 128
+  conv_num_layers: 1
+  conv_aggr: mean
+  lstm_num_layers: 1
+  time_length: ${dataset.timestamp}
+  one_hot: ${model.one_hot}
+  undirected: False

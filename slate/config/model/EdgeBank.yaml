@@ -1,0 +1,10 @@
+evolving: False # If false Model does not considere links that appeared in previous timestamp
+one_hot: True
+name: EdgeBank
+pred_next: False
+clip_grad: False
+
+link_pred:
+  _target_: dgt.models.EdgeBank
+  mode: 'tw'
+  

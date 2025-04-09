@@ -1,0 +1,23 @@
+evolving: True # If false Model does not considere links that appeared in previous timestamp
+pred_next: True
+score: 'none'
+one_hot: True
+clip_grad: True
+name: EvolveGCNO
+
+link_pred:
+  _target_: dgt.models.EvolveGCNO
+  num_nodes: ${dataset.num_nodes}
+  num_features: ${sub:${dataset.timestamp},1}
+  in_channels: 128
+  num_layers_rnn: 1
+  rnn_type: GRU
+  time_length: ${dataset.timestamp}
+  improved: False
+  cached: True
+  normalize: True
+  add_self_loops: True
+  use_edge_weight: True
+  undirected: True
+  neg_weight: 1.0
+  one_hot: ${model.one_hot}

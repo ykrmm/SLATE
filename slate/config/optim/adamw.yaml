@@ -1,0 +1,4 @@
+optimizer: 
+  _target_: torch.optim.AdamW
+  lr: ${lr}
+  weight_decay: ${div:${lr},2}

@@ -1,0 +1,4 @@
+optimizer: 
+  _target_: torch.optim.Adam
+  lr: ${lr}
+  weight_decay: 0
