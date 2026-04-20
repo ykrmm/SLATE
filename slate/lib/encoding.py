@@ -84,6 +84,8 @@ class AddSupraLaplacianPE:
         self.add_eig_vals = add_eig_vals
         self.ncv = None
         self.which = which
+        self.training = True
+        self.apply_sign_flip = True
         assert self.normalization in [None, "sym", "rw"], "Invalid normalization"
 
     def __call__(
@@ -134,8 +136,9 @@ class AddSupraLaplacianPE:
 
         eig_vecs = np.real(eig_vecs[:, eig_vals.argsort()])
         pe = torch.from_numpy(eig_vecs[:, 1 : self.k + 1])
-        sign = -1 + 2 * torch.randint(0, 2, (self.k,))
-        pe *= sign
+        if self.training and self.apply_sign_flip:
+            sign = -1 + 2 * torch.randint(0, 2, (self.k,))
+            pe *= sign
         if self.add_eig_vals:
             eig_vals = torch.from_numpy(eig_vals).repeat(num_nodes, 1)
             eig_vals = eig_vals[:, 1 : self.k + 1]

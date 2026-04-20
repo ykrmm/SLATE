@@ -1,10 +1,12 @@
 from typing import Dict, List, Any
 import logging
+import math
 import random
 import time
 import wandb
 import numpy as np
 import torch
+from torch.optim.lr_scheduler import LambdaLR
 import omegaconf
 from omegaconf import DictConfig
 from hydra.utils import instantiate
@@ -277,6 +279,17 @@ class EngineLinkPred(EngineBase):
                     train_dts.get_dataset_t(t_train - 1).get_graphs(), tw
                 )
 
+            # Learning rate scheduler: warmup + cosine decay
+            warmup_epochs = max(2, epoch // 5)  # 20% warmup
+            min_lr_ratio = 0.1  # don't decay below 10% of peak LR
+            def lr_lambda(current_epoch):
+                if current_epoch < warmup_epochs:
+                    return float(current_epoch + 1) / float(warmup_epochs)
+                progress = float(current_epoch - warmup_epochs) / float(max(1, epoch - warmup_epochs))
+                cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+                return min_lr_ratio + (1.0 - min_lr_ratio) * cosine
+            scheduler = LambdaLR(self.optimizer, lr_lambda)
+
             # Training loop
             self.logger.info("Start training")
             val_ap = []
@@ -309,7 +322,7 @@ class EngineLinkPred(EngineBase):
                         self.logger.info(f"AP Train: {current_train_ap}")
                         train_ap.append(current_train_ap)
                     self.logger.info(f"Loss: {mean_loss}")
-                    # scheduler.step()
+                    scheduler.step()
 
                 # eval
                 if ep % eval_every == 0:

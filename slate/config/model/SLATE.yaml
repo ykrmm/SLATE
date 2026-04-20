@@ -3,7 +3,7 @@ score: 'none' # If true, Model considers the score of the links
 one_hot: True
 name: SLATE
 pred_next: False
-clip_grad: False
+clip_grad: True
 link_pred: 
   _target_: slate.models.SLATE
   num_nodes: ${dataset.num_nodes}
@@ -37,11 +37,13 @@ link_pred:
   p_self_time: 0.5
   bias_lin_pe: False
   add_lin_pe: True
+  use_signnet: False
+  signnet_hidden_dim: 16
   dim_feedforward: 256
   nhead: 4
   dropout_trsf: 0.1
   num_layers_trsf: 1
   aggr: 'last'
   one_hot: ${model.one_hot}
-  norm_first: False
+  norm_first: True
   undirected: True

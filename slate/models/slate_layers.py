@@ -217,6 +217,69 @@ class PositionalEncoding(nn.Module):
         return pe_temp
 
 
+class SignNet(nn.Module):
+    """
+    Sign-invariant network for Laplacian eigenvector PE.
+    Applies phi(v) + phi(-v) per eigenvector to get a sign-invariant representation,
+    then aggregates across eigenvectors with rho.
+
+    Reference: "Sign and Basis Invariant Networks for Spectral Graph Representation Learning"
+    (Lim et al., ICLR 2023)
+    """
+
+    def __init__(
+        self,
+        k: int,
+        out_dim: int,
+        hidden_dim: int = 16,
+        has_eig_vals: bool = False,
+    ):
+        super().__init__()
+        self.k = k
+        self.hidden_dim = hidden_dim
+        self.has_eig_vals = has_eig_vals
+
+        self.phi = nn.Sequential(
+            nn.Linear(1, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+
+        in_dim = k * hidden_dim
+        if has_eig_vals:
+            in_dim += k
+
+        self.rho = nn.Sequential(
+            nn.Linear(in_dim, out_dim),
+            nn.ReLU(),
+            nn.Linear(out_dim, out_dim),
+        )
+
+    def forward(self, pe: torch.Tensor) -> torch.Tensor:
+        """
+        Arguments:
+            pe: Tensor, shape [N, k] (eigvecs only) or [N, 2k] (eigvecs concat eigvals)
+        Returns:
+            Tensor, shape [N, out_dim]
+        """
+        N = pe.shape[0]
+        if self.has_eig_vals:
+            eig_vecs = pe[:, : self.k]
+            eig_vals = pe[:, self.k :]
+        else:
+            eig_vecs = pe
+            eig_vals = None
+
+        v = eig_vecs.unsqueeze(-1)
+        x = self.phi(v) + self.phi(-v)
+        x = x.reshape(N, -1)
+
+        if eig_vals is not None:
+            x = torch.cat([x, eig_vals], dim=-1)
+
+        return self.rho(x)
+
+
 class LinkPredScore(nn.Module):
     def __init__(self, dim_emb: int, dropout: float = 0.1, edge: bool = False) -> None:
         """

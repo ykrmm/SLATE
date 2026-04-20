@@ -7,6 +7,7 @@ from slate.models.slate_layers import (
     CrossAttention,
     NodeAggregation,
     EdgeAggregation,
+    SignNet,
 )
 from slate.lib import graphs_to_supra, reindex_edge_index, AddSupraLaplacianPE, AddSupraRWPE
 from performer_pytorch import Performer
@@ -50,6 +51,8 @@ class SLATE(nn.Module):
         p_self_time: float,
         add_lin_pe: bool,
         bias_lin_pe: bool,
+        use_signnet: bool,
+        signnet_hidden_dim: int,
         dim_feedforward: int,
         nhead: int,
         dropout_trsf: float,
@@ -95,6 +98,8 @@ class SLATE(nn.Module):
         self.k = k 
         self.add_lin_pe = add_lin_pe
         self.bias_lin_pe = bias_lin_pe
+        self.use_signnet = use_signnet
+        self.signnet_hidden_dim = signnet_hidden_dim
         self.norm_lap = norm_lap
         self.add_eig_vals = add_eig_vals
         self.add_vn = add_vn
@@ -137,16 +142,27 @@ class SLATE(nn.Module):
                 add_eig_vals=self.add_eig_vals,
                 which=self.which,
             )
+            # SignNet is sign-invariant by construction — disable random sign flip
+            if self.use_signnet:
+                self.spatio_temp_PE.apply_sign_flip = False
         elif self.pe_name == "suprarw":
             self.spatio_temp_PE = AddSupraRWPE(k=self.k)
         else:
             raise ValueError(
                 f"Invalid 'pe_name': {self.pe_name}. Supported options are 'supralaplacian' and 'suprarw'."
             )
-        self.in_dim_pe = 2 * self.k if (self.add_eig_vals and self.pe_name == 'supralaplacian') else self.dim_pe
+        self.in_dim_pe = 2 * self.k if (self.add_eig_vals and self.pe_name == 'supralaplacian') else self.k
 
-        # Initialize linear PE
-        self.lin_pe = nn.Linear(self.in_dim_pe, self.dim_pe, bias=self.bias_lin_pe)
+        # Initialize PE projection: SignNet (sign-invariant) or simple Linear
+        if self.use_signnet and self.pe_name == 'supralaplacian':
+            self.lin_pe = SignNet(
+                k=self.k,
+                out_dim=self.dim_pe,
+                hidden_dim=self.signnet_hidden_dim,
+                has_eig_vals=self.add_eig_vals,
+            )
+        else:
+            self.lin_pe = nn.Linear(self.in_dim_pe, self.dim_pe, bias=self.bias_lin_pe)
 
         # Initialize linear input
         self.lin_input = nn.Linear(
@@ -245,6 +261,7 @@ class SLATE(nn.Module):
         )
 
         # Third : compute the supralaplacian PE
+        self.spatio_temp_PE.training = self.training
         pe = self.spatio_temp_PE(edge_index, edge_weight, num_nodes_supra_adj)
         if self.add_lin_pe:
             pe = self.lin_pe(pe)
@@ -309,7 +326,7 @@ class SLATE(nn.Module):
                 z_tokens = z_tokens[
                     :-w
                 ]  # We dont need virtual nodes in the final embedding for predictions
-            final_emb = z_tokens.reshape(self.num_nodes, w, self.dim_emb)  # [N, W, F]
+            final_emb = z_tokens.reshape(w, self.num_nodes, self.dim_emb).transpose(0, 1)  # [N, W, F]
         return final_emb
 
     def get_loss_link_pred(self, feed_dict, graphs):
